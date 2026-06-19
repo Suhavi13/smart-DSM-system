@@ -1,3 +1,6 @@
 data/
 *.csv
 *.zip
+.venv/
+backend/
+.env

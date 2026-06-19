@@ -1,8 +1,15 @@
-from sqlalchemy import create_engine
+from sqlalchemy import text
 
-engine = create_engine(
-    "postgresql://postgres:password@localhost/smart_building_dsm"
-)
+from backend.app.database import engine
 
-with engine.connect() as conn:
-    print("Database Connected Successfully!")
+
+def main():
+    with engine.connect() as connection:
+        result = connection.execute(text("SELECT current_database();"))
+        database_name = result.scalar_one()
+
+        print(f"Connected successfully to PostgreSQL database: {database_name}")
+
+
+if __name__ == "__main__":
+    main()
