@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GBTAC dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
+    </div>
+    <nav class="topnav" aria-label="Primary navigation">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="sensors.html">Sensors</a>
+      <a href="recommendations.html">Recommendations</a>
+      <a href="index.html" class="btn btn-secondary">Log out</a>
+    </nav>
+  </header>
+
+  <main class="page-layout dashboard-page">
+    <section class="dashboard-heading">
+      <div>
+        <h1>Good morning, <span id="currentUser">Operator</span></h1>
+      </div>
+      <div class="dashboard-update">
+        <span class="live-dot" aria-hidden="true"></span>
+        Updated 2 minutes ago
+      </div>
+    </section>
+
+    <section class="summary-grid" aria-label="Building summary">
+      <article class="summary-card summary-temperature">
+        <div class="summary-card-top"><span>Temperature</span></div>
+        <p class="summary-value">22.4<span>&deg;C</span></p>
+        <p class="summary-note positive">Within comfort range</p>
+      </article>
+      <article class="summary-card summary-humidity">
+        <div class="summary-card-top"><span>Humidity</span></div>
+        <p class="summary-value">46<span>%</span></p>
+        <p class="summary-note">Target: 40-60%</p>
+      </article>
+      <article class="summary-card summary-energy">
+        <div class="summary-card-top"><span>Energy usage</span></div>
+        <p class="summary-value">18.7<span> kWh</span></p>
+        <p class="summary-note positive">8% below yesterday</p>
+      </article>
+      <article class="summary-card summary-price">
+        <div class="summary-card-top"><span>Electricity price</span></div>
+        <p class="summary-value">0.14<span> /kWh</span></p>
+        <p class="summary-note">Current sample rate</p>
+      </article>
+      <article class="summary-card summary-status">
+        <div class="summary-card-top"><span>System status</span></div>
+        <p class="summary-value summary-status-value">Normal</p>
+        <p class="summary-note positive">All major systems online</p>
+      </article>
+      <article class="summary-card summary-pending">
+        <div class="summary-card-top"><span>Pending recommendations</span></div>
+        <p class="summary-value">4</p>
+        <p class="summary-note warning-text">2 need attention today</p>
+      </article>
+    </section>
+
+    <section class="dashboard-charts" aria-label="Building performance charts">
+      <article class="dashboard-panel chart-panel">
+        <div class="panel-heading">
+          <div><h2>Indoor conditions</h2><p>Temperature and humidity over 24 hours</p></div>
+        </div>
+        <div class="chart-container"><canvas id="conditionsChart" aria-label="Temperature and humidity line chart"></canvas></div>
+      </article>
+      <article class="dashboard-panel chart-panel energy-chart-panel">
+        <div class="panel-heading">
+        </div>
+        <div class="chart-container energy-chart-container"><canvas id="energyChart" aria-label="Weekly energy usage bar chart"></canvas></div>
+      </article>
+    </section>
+
+    <section class="dashboard-lower-grid">
+      <article class="dashboard-panel weather-panel">
+        <div class="panel-heading">
+          <div><h2>Weather and API preview</h2><p>Sample seven-day outdoor forecast</p></div>
+        </div>
+        <div class="weather-current">
+          <div class="weather-symbol" aria-hidden="true">&#9725;</div>
+          <div><p class="weather-temp">24&deg;C</p><p>Partly cloudy</p></div>
+          <dl class="weather-details">
+            <div><dt>Humidity</dt><dd>42%</dd></div>
+            <div><dt>Forecast high</dt><dd>29&deg;C</dd></div>
+            <div><dt>Forecast low</dt><dd>18&deg;C</dd></div>
+          </dl>
+        </div>
+        <div class="weather-chart-container">
+          <canvas id="weatherForecastChart" aria-label="Seven-day temperature forecast line chart"></canvas>
+        </div>
+      </article>
+
+      <article class="dashboard-panel recommendation-preview">
+        <div class="panel-heading">
+        <h2>Recommendation</h2>
+        </div>
+
+        <p>Peak demand reduction</p>
+        <p>Reduce cooling load between 4:00 p.m. and 6:00 p.m. to avoid peak electricity charges.</p>
+
+        <div class="recommendation-preview-details">
+          <div><span>Estimated savings</span><strong>$85</strong></div>
+          <div><span>Status</span><strong>Pending review</strong></div>
+        </div>
+
+        <div class="recommendation-preview-footer">
+          <a class="recommendation-link-button" href="recommendations.html">View recommendations</a>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-footer"></footer>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building sensors | GBTAC</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-title"><span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span></div>
+    <nav class="topnav" aria-label="Primary navigation">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="sensors.html" class="active">Sensors</a>
+      <a href="recommendations.html">Recommendations</a>
+      <a href="index.html" class="btn btn-secondary">Log out</a>
+    </nav>
+  </header>
+
+  <main class="page-layout sensors-page">
+    <section class="dashboard-heading">
+      <div><p class="dashboard-eyebrow"></p><h1>Building sensors</h1><p></p></div>
+      <div class="search-box">
+        <label class="sr-only" for="sensorFilterField">Filter sensors by</label>
+        <select id="sensorFilterField" aria-label="Filter sensors by">
+          <option value="all">All fields</option>
+          <option value="id">Sensor ID</option>
+          <option value="name">Sensor name</option>
+          <option value="type">Type</option>
+          <option value="value">Current value</option>
+          <option value="unit">Unit</option>
+          <option value="location">Location</option>
+          <option value="status">Status</option>
+        </select>
+        <label class="sr-only" for="sensorSearch">Search sensors</label>
+        <input id="sensorSearch" type="search" placeholder="Search sensors" />
+      </div>
+    </section>
+
+    <section class="sensor-summary-grid" aria-label="Sensor summary">
+      <article class="sensor-summary-card"><span>Total sensors</span><strong id="totalSensors">0</strong></article>
+      <article class="sensor-summary-card sensor-online"><span>Online sensors</span><strong id="onlineSensors">0</strong></article>
+      <article class="sensor-summary-card sensor-offline"><span>Offline sensors</span><strong id="offlineSensors">0</strong></article>
+      <article class="sensor-summary-card sensor-alerts"><span>Active alerts</span><strong id="activeAlerts">0</strong></article>
+    </section>
+
+    <section class="dashboard-panel sensor-chart-panel">
+      <div class="panel-heading"><div><h2>Temperature trend</h2><p>Sample lobby readings over the last 12 hours</p></div></div>
+      <div class="sensor-chart-container"><canvas id="sensorTrendChart" aria-label="Temperature readings over time"></canvas></div>
+    </section>
+
+    <section class="panel table-panel sensor-table-panel">
+      <div class="panel-heading"><div><h2>Sensor inventory</h2><p id="sensorResultCount">Showing 0 sensors</p></div></div>
+      <table class="sensor-table">
+        <thead><tr><th>Sensor ID</th><th>Sensor name</th><th>Type</th><th>Current value</th><th>Unit</th><th>Location</th><th>Status</th><th>Last updated</th></tr></thead>
+        <tbody id="sensorTableBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="site-footer"><p></p></footer>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
