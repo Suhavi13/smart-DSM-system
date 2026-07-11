@@ -34,20 +34,7 @@ const recommendations = [
   { id: 'standby', category: 'Plug loads', title: 'Reduce standby loads', description: 'Power down idle meeting-room displays and shared equipment overnight.', reason: 'Standby consumption remains above the overnight baseline.', savings: 35, priority: 'Low' },
 ];
 
-const buildingSensors = [
-  { id: 'TMP-101', name: 'Lobby Temperature', type: 'Temperature', value: '22.4', unit: 'C', location: 'Main Lobby', status: 'Online', updated: '1 min ago' },
-  { id: 'HUM-102', name: 'Lobby Humidity', type: 'Humidity', value: '42', unit: '%', location: 'Main Lobby', status: 'Online', updated: '2 min ago' },
-  { id: 'CO2-201', name: 'East Wing CO2', type: 'CO2', value: '980', unit: 'ppm', location: 'East Wing', status: 'Warning', updated: '1 min ago' },
-  { id: 'AIR-301', name: 'Supply Airflow', type: 'Airflow', value: '645', unit: 'CFM', location: 'AHU-1', status: 'Online', updated: '3 min ago' },
-  { id: 'PRS-401', name: 'Duct Pressure', type: 'Pressure', value: '1.8', unit: 'in. w.g.', location: 'Mechanical Room', status: 'Online', updated: '2 min ago' },
-  { id: 'DMP-501', name: 'Outside Air Damper', type: 'Damper Status', value: '65', unit: '% open', location: 'AHU-1', status: 'Warning', updated: '4 min ago' },
-  { id: 'TMP-103', name: 'Server Room Temperature', type: 'Temperature', value: '20.1', unit: 'C', location: 'Server Room', status: 'Online', updated: '1 min ago' },
-  { id: 'HUM-104', name: 'Archive Humidity', type: 'Humidity', value: '48', unit: '%', location: 'Archive Room', status: 'Offline', updated: '38 min ago' },
-  { id: 'CO2-202', name: 'Conference Room CO2', type: 'CO2', value: '720', unit: 'ppm', location: 'Conference Room', status: 'Online', updated: '2 min ago' },
-  { id: 'AIR-302', name: 'Return Airflow', type: 'Airflow', value: '590', unit: 'CFM', location: 'AHU-2', status: 'Online', updated: '5 min ago' },
-  { id: 'PRS-402', name: 'Filter Differential Pressure', type: 'Pressure', value: '2.4', unit: 'in. w.g.', location: 'AHU-2', status: 'Warning', updated: '3 min ago' },
-  { id: 'DMP-502', name: 'West Zone Damper', type: 'Damper Status', value: '0', unit: '% open', location: 'West Wing', status: 'Offline', updated: '52 min ago' },
-];
+let buildingSensors = [];
 
 const sensors = [
   {
@@ -77,12 +64,13 @@ const sensors = [
 ];
 
 function getBadgeClass(status) {
-  if (status === 'Online') return 'badge badge-normal';
-  if (status === 'Offline') return 'badge badge-critical';
-  if (status === 'Normal') return 'badge badge-normal';
-  if (status === 'Warning') return 'badge badge-warning';
-  if (status === 'Critical') return 'badge badge-critical';
-  return 'badge';
+  if (status === "Imported") return "badge badge-normal";
+  if (status === "No data") return "badge badge-warning";
+  if (status === "Online") return "badge badge-normal";
+  if (status === "Offline") return "badge badge-critical";
+  if (status === "Warning") return "badge badge-warning";
+  if (status === "Critical") return "badge badge-critical";
+  return "badge";
 }
 
 const sensorFilterFields = {
@@ -123,10 +111,27 @@ function renderSensors(filter = '', filterField = 'all') {
 }
 
 function updateSensorSummary() {
-  if (totalSensors) totalSensors.textContent = buildingSensors.length;
-  if (onlineSensors) onlineSensors.textContent = buildingSensors.filter((sensor) => sensor.status === 'Online').length;
-  if (offlineSensors) offlineSensors.textContent = buildingSensors.filter((sensor) => sensor.status === 'Offline').length;
-  if (activeAlerts) activeAlerts.textContent = buildingSensors.filter((sensor) => sensor.status === 'Warning').length;
+  if (totalSensors) {
+    totalSensors.textContent = buildingSensors.length;
+  }
+
+  if (onlineSensors) {
+    onlineSensors.textContent = buildingSensors.filter(
+      (sensor) => sensor.status === "Imported"
+    ).length;
+  }
+
+  if (offlineSensors) {
+    offlineSensors.textContent = buildingSensors.filter(
+      (sensor) => sensor.status === "No data"
+    ).length;
+  }
+
+  if (activeAlerts) {
+    activeAlerts.textContent = buildingSensors.filter(
+      (sensor) => sensor.priority === "P1"
+    ).length;
+  }
 }
 
 function getPasswordValidationMessage(password) {
@@ -308,184 +313,185 @@ if (currentYear) {
   currentYear.textContent = new Date().getFullYear();
 }
 
-function initializeDashboardCharts() {
-  const conditionsCanvas = document.getElementById('conditionsChart');
-  const energyCanvas = document.getElementById('energyChart');
-  const weatherCanvas = document.getElementById('weatherForecastChart');
-  if (typeof Chart === 'undefined') return;
+// function initializeDashboardCharts() {
+//   const conditionsCanvas = document.getElementById('conditionsChart');
+//   const energyCanvas = document.getElementById('energyChart');
+//   const weatherCanvas = document.getElementById('weatherForecastChart');
+//   if (typeof Chart === 'undefined') return;
 
-  Chart.defaults.font.family = 'Arial, Helvetica, sans-serif';
-  Chart.defaults.color = '#222222';
+//   Chart.defaults.font.family = 'Arial, Helvetica, sans-serif';
+//   Chart.defaults.color = '#222222';
 
-  const sharedOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: { usePointStyle: true, boxWidth: 8, padding: 18 },
-      },
-    },
-    scales: {
-      x: { grid: { display: false }, border: { display: false } },
-      y: { grid: { color: '#E2E8F0' }, border: { display: false } },
-    },
-  };
+//   const sharedOptions = {
+//     responsive: true,
+//     maintainAspectRatio: false,
+//     interaction: { mode: 'index', intersect: false },
+//     plugins: {
+//       legend: {
+//         position: 'bottom',
+//         labels: { usePointStyle: true, boxWidth: 8, padding: 18 },
+//       },
+//     },
+//     scales: {
+//       x: { grid: { display: false }, border: { display: false } },
+//       y: { grid: { color: '#E2E8F0' }, border: { display: false } },
+//     },
+//   };
 
-  if (conditionsCanvas) {
-    new Chart(conditionsCanvas, {
-      type: 'line',
-      data: {
-        labels: ['12 a.m.', '4 a.m.', '8 a.m.', '12 p.m.', '4 p.m.', '8 p.m.', 'Now'],
-        datasets: [
-          {
-            label: 'Temperature (C)',
-            data: [20.8, 20.4, 21.1, 22.2, 23.0, 22.7, 22.4],
-            borderColor: '#1E9DD1',
-            backgroundColor: 'rgba(30, 157, 209, 0.12)',
-            tension: 0.35,
-            pointRadius: 3,
-            fill: true,
-          },
-          {
-            label: 'Humidity (%)',
-            data: [49, 50, 48, 45, 43, 45, 46],
-            borderColor: '#5A0E6F',
-            backgroundColor: 'transparent',
-            tension: 0.35,
-            pointRadius: 3,
-          },
-        ],
-      },
-      options: sharedOptions,
-    });
-  }
+//   if (conditionsCanvas) {
+//     new Chart(conditionsCanvas, {
+//       type: 'line',
+//       data: {
+//         labels: ['12 a.m.', '4 a.m.', '8 a.m.', '12 p.m.', '4 p.m.', '8 p.m.', 'Now'],
+//         datasets: [
+//           {
+//             label: 'Temperature (C)',
+//             data: [20.8, 20.4, 21.1, 22.2, 23.0, 22.7, 22.4],
+//             borderColor: '#1E9DD1',
+//             backgroundColor: 'rgba(30, 157, 209, 0.12)',
+//             tension: 0.35,
+//             pointRadius: 3,
+//             fill: true,
+//           },
+//           {
+//             label: 'Humidity (%)',
+//             data: [49, 50, 48, 45, 43, 45, 46],
+//             borderColor: '#5A0E6F',
+//             backgroundColor: 'transparent',
+//             tension: 0.35,
+//             pointRadius: 3,
+//           },
+//         ],
+//       },
+//       options: sharedOptions,
+//     });
+//   }
 
-  if (energyCanvas) new Chart(energyCanvas, {
-    type: 'bar',
-    data: {
-      labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-      datasets: [{
-        label: 'Energy (kWh)',
-        data: [312, 298, 325, 287, 274, 221, 205],
-        backgroundColor: (context) => {
-          const chart = context.chart;
-          const { chartArea, ctx } = chart;
-          if (!chartArea) return 'rgba(30, 157, 209, 0.72)';
-          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'rgba(30, 157, 209, 0.95)');
-          gradient.addColorStop(1, 'rgba(30, 157, 209, 0.38)');
-          return gradient;
-        },
-        hoverBackgroundColor: '#147EA9',
-        borderColor: 'rgba(90, 14, 111, 0.38)',
-        borderWidth: 1,
-        borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
-        barPercentage: 0.62,
-        categoryPercentage: 0.72,
-        maxBarThickness: 42,
-        borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: 'Daily energy usage',
-          align: 'start',
-          color: '#5A0E6F',
-          font: { size: 14, weight: 800 },
-          padding: { bottom: 10 },
-        },
-        tooltip: {
-          backgroundColor: '#5A0E6F',
-          titleColor: '#FFFFFF',
-          bodyColor: '#FFFFFF',
-          displayColors: false,
-          padding: 10,
-          cornerRadius: 8,
-          callbacks: {
-            label: (context) => `${context.parsed.y} kWh`,
-          },
-        },
-      },
-      layout: { padding: { top: 4, right: 8, bottom: 0, left: 0 } },
-      scales: {
-        x: {
-          grid: { display: false },
-          border: { display: false },
-          title: {
-            display: false,
-            text: 'Day',
-          },
-          ticks: {
-            color: '#64748B',
-            font: { size: 11, weight: 700 },
-            maxRotation: 0,
-            minRotation: 0,
-            callback: function(value) {
-              return this.getLabelForValue(value).slice(0, 3);
-            },
-          },
-        },
-        y: {
-          grid: { color: 'rgba(100, 116, 139, 0.16)' },
-          border: { display: false },
-          beginAtZero: true,
-          suggestedMax: 360,
-          title: {
-            display: false,
-            text: 'Energy usage (kWh)',
-          },
-          ticks: {
-            color: '#64748B',
-            padding: 6,
-            maxTicksLimit: 5,
-            callback: (value) => `${value}`,
-          },
-        },
-      },
-    },
-  });
+//   if (energyCanvas) {
+//     loadSiteConsumptionChart(energyCanvas);
+//   }
 
-  if (weatherCanvas) {
-    new Chart(weatherCanvas, {
-      type: 'line',
-      data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          label: 'Forecast temperature (C)',
-          data: [24, 26, 28, 29, 27, 25, 23],
-          borderColor: '#1E9DD1',
-          backgroundColor: 'rgba(30, 157, 209, 0.12)',
-          tension: 0.35,
-          pointRadius: 3,
-          pointBackgroundColor: '#1E9DD1',
-          fill: true,
-        }],
-      },
-      options: {
-        ...sharedOptions,
-        plugins: { ...sharedOptions.plugins, legend: { display: false } },
-        scales: {
-          x: sharedOptions.scales.x,
-          y: {
-            ...sharedOptions.scales.y,
-            suggestedMin: 18,
-            suggestedMax: 30,
-            ticks: { callback: (value) => `${value} C` },
-          },
-        },
-      },
-    });
-  }
-}
+//   if (weatherCanvas) {
+//     new Chart(weatherCanvas, {
+//       type: 'line',
+//       data: {
+//         labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+//         datasets: [{
+//           label: 'Forecast temperature (C)',
+//           data: [24, 26, 28, 29, 27, 25, 23],
+//           borderColor: '#1E9DD1',
+//           backgroundColor: 'rgba(30, 157, 209, 0.12)',
+//           tension: 0.35,
+//           pointRadius: 3,
+//           pointBackgroundColor: '#1E9DD1',
+//           fill: true,
+//         }],
+//       },
+//       options: {
+//         ...sharedOptions,
+//         plugins: { ...sharedOptions.plugins, legend: { display: false } },
+//         scales: {
+//           x: sharedOptions.scales.x,
+//           y: {
+//             ...sharedOptions.scales.y,
+//             suggestedMin: 18,
+//             suggestedMax: 30,
+//             ticks: { callback: (value) => `${value} C` },
+//           },
+//         },
+//       },
+//     });
+//   }
+// }
 
-initializeDashboardCharts();
+// async function loadSiteConsumptionChart(chartCanvas) {
+//   try {
+//     const response = await fetch(
+//       "http://127.0.0.1:8000/api/v1/readings/30000_TL342?limit=200"
+//     );
+
+//     if (!response.ok) {
+//       throw new Error("Could not load site consumption readings.");
+//     }
+
+//     const data = await response.json();
+
+//     const existingChart = Chart.getChart(chartCanvas);
+
+//     if (existingChart) {
+//       existingChart.destroy();
+//     }
+
+//     new Chart(chartCanvas, {
+//       type: "line",
+//       data: {
+//         labels: data.points.map((point) =>
+//           new Date(point.timestamp).toLocaleString()
+//         ),
+//         datasets: [
+//           {
+//             label: "GBT Site Consumption (kW)",
+//             data: data.points.map((point) =>
+//               Math.abs(point.value) / 1000
+//             ),
+//             borderColor: "#1E9DD1",
+//             backgroundColor: "rgba(30, 157, 209, 0.12)",
+//             tension: 0.3,
+//             pointRadius: 1,
+//             fill: true
+//           }
+//         ]
+//       },
+//       options: {
+//         responsive: true,
+//         maintainAspectRatio: false,
+//         interaction: {
+//           mode: "index",
+//           intersect: false
+//         },
+//         plugins: {
+//           legend: {
+//             display: true,
+//             position: "bottom"
+//           },
+//           tooltip: {
+//             callbacks: {
+//               label: (context) =>
+//                 `Site Consumption: ${context.parsed.y.toFixed(2)} kW`
+//             }
+//           }
+//         },
+//         scales: {
+//           x: {
+//             grid: {
+//               display: false
+//             },
+//             ticks: {
+//               maxTicksLimit: 6,
+//               maxRotation: 0
+//             }
+//           },
+//           y: {
+//             grid: {
+//               color: "#E2E8F0"
+//             },
+//             title: {
+//               display: true,
+//               text: "Site Consumption (kW)"
+//             },
+//             ticks: {
+//               callback: (value) => `${value} kW`
+//             }
+//           }
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error("Site consumption chart error:", error);
+//   }
+// }
+
+// initializeDashboardCharts();
 
 function initializeSensorChart() {
   const sensorTrendCanvas = document.getElementById('sensorTrendChart');
