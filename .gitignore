@@ -1,6 +1,14 @@
+# Large/private project data
 data/
 *.csv
 *.zip
-.venv/
-backend/
+
+# Environment variables and secrets
 .env
+backend/.env
+services/**/.env
+
+# Python virtual environments
+.venv/
+backend/.venv/
+services/**/.venv/
