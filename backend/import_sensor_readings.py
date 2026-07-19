@@ -143,18 +143,24 @@ def main():
 
             print(f"Processed chunk {chunk_number}")
 
-        rows_to_insert = []
+        total_prepared = 0
+        total_inserted = 0
 
+        # Insert one sensor at a time. This keeps the final insert list bounded
+        # to 10,000 dictionaries instead of building one 190,000-row list.
         for trend_column, readings_df in latest_rows.items():
             if readings_df.empty:
                 print(f"No usable readings found for {trend_column}")
                 continue
 
             sensor_data = sensor_map[trend_column]
+            sensor_rows = []
 
-            for row in readings_df.itertuples(index=False, name=None):
-                reading_time, value = row
-                rows_to_insert.append(
+            for reading_time, value in readings_df.itertuples(
+                index=False,
+                name=None,
+            ):
+                sensor_rows.append(
                     {
                         "sensor_point_id": sensor_data["sensor_point_id"],
                         "reading_time": reading_time.to_pydatetime(),
@@ -162,20 +168,25 @@ def main():
                     }
                 )
 
+            prepared_count = len(sensor_rows)
+            inserted_count = insert_rows_in_batches(db, sensor_rows)
+            total_prepared += prepared_count
+            total_inserted += inserted_count
+
             print(
                 f"{sensor_data['sensor_code']}: "
-                f"{len(readings_df)} readings prepared"
+                f"{prepared_count} readings prepared, "
+                f"{inserted_count} inserted"
             )
 
-        if not rows_to_insert:
+        if total_prepared == 0:
             print("No readings were prepared for import.")
             return
 
-        total_inserted = insert_rows_in_batches(db, rows_to_insert)
         db.commit()
 
         print("Import complete.")
-        print(f"Rows prepared: {len(rows_to_insert)}")
+        print(f"Rows prepared: {total_prepared}")
         print(f"Rows inserted: {total_inserted}")
         print(f"Extreme/sentinel values skipped: {rejected_extreme_values}")
 

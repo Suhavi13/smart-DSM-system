@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class SensorBase(BaseModel):
@@ -43,12 +43,19 @@ class SensorSummaryResponse(BaseModel):
     signConvention: Optional[str] = None
     dataType: Optional[str] = None
     location: Optional[str] = None
+    hasReadings: bool = False
+    latestValue: Optional[float] = None
+    latestRawValue: Optional[float] = None
+    latestTimestamp: Optional[datetime] = None
 
 
 class ReadingPointResponse(BaseModel):
     timestamp: datetime
     value: Optional[float] = None
     rawValue: Optional[float] = None
+    minimumValue: Optional[float] = None
+    maximumValue: Optional[float] = None
+    count: int = 1
 
 
 class ReadingSensorResponse(BaseModel):
@@ -65,6 +72,11 @@ class ReadingSensorResponse(BaseModel):
 
 
 class SensorReadingsResponse(BaseModel):
+    datasetType: str = "historical"
+    interval: str
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    pointCount: int
     sensor: ReadingSensorResponse
     points: list[ReadingPointResponse]
 

@@ -1,5 +1,9 @@
+from datetime import datetime
+from typing import Literal
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from .database import get_db
@@ -9,13 +13,16 @@ from .schemas import (
     SensorReadingsResponse,
     SensorSummaryResponse,
 )
+from .services import scale_value, serialize_readings
+
+ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
-    title="Smart Building DSM API",
-    version="0.1.0",
+    title="GBTAC Sensor Data Service",
+    version="0.2.0",
     description=(
-        "Backend API for historical smart-building sensor analytics and "
-        "DSM recommendation development."
+        "Read-only API for selected historical GBTAC sensor metadata, "
+        "latest values, date-filtered readings, and chart aggregation."
     ),
 )
 
@@ -28,12 +35,15 @@ app.add_middleware(
         "http://localhost:5500",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
 
-def serialize_sensor(sensor: SensorPoint) -> dict:
+def serialize_sensor(
+    sensor: SensorPoint,
+    latest_reading: SensorReading | None = None,
+) -> dict:
     return {
         "sensorPointId": sensor.sensor_point_id,
         "sensorCode": sensor.sensor_code,
@@ -50,20 +60,60 @@ def serialize_sensor(sensor: SensorPoint) -> dict:
         "signConvention": sensor.sign_convention,
         "dataType": sensor.data_type,
         "location": sensor.location,
+        "hasReadings": latest_reading is not None,
+        "latestValue": (
+            scale_value(sensor, latest_reading.value)
+            if latest_reading
+            else None
+        ),
+        "latestRawValue": latest_reading.value if latest_reading else None,
+        "latestTimestamp": (
+            latest_reading.reading_time if latest_reading else None
+        ),
     }
 
 
-def scale_value(sensor: SensorPoint, raw_value: float | None) -> float | None:
-    if raw_value is None:
-        return None
-    return raw_value * (sensor.scale_factor or 1.0)
+def selected_sensor_latest_rows(db: Session):
+    """Fetch selected sensors and their latest readings in one DB query."""
+    latest_times = (
+        db.query(
+            SensorReading.sensor_point_id.label("sensor_point_id"),
+            func.max(SensorReading.reading_time).label("latest_time"),
+        )
+        .group_by(SensorReading.sensor_point_id)
+        .subquery()
+    )
+
+    return (
+        db.query(SensorPoint, SensorReading)
+        .outerjoin(
+            latest_times,
+            SensorPoint.sensor_point_id == latest_times.c.sensor_point_id,
+        )
+        .outerjoin(
+            SensorReading,
+            and_(
+                SensorReading.sensor_point_id
+                == latest_times.c.sensor_point_id,
+                SensorReading.reading_time == latest_times.c.latest_time,
+            ),
+        )
+        .filter(SensorPoint.is_selected.is_(True))
+        .order_by(
+            SensorPoint.priority,
+            SensorPoint.category,
+            SensorPoint.display_name,
+        )
+        .all()
+    )
 
 
 @app.get("/health")
 def health_check():
     return {
         "status": "ok",
-        "service": "Smart Building DSM API",
+        "service": "GBTAC Sensor Data Service",
+        "version": "0.2.0",
         "datasetType": "historical",
     }
 
@@ -72,7 +122,20 @@ def health_check():
     "/api/v1/sensors",
     response_model=list[SensorSummaryResponse],
 )
-def get_selected_sensors(db: Session = Depends(get_db)):
+def get_selected_sensors(
+    includeLatest: bool = Query(
+        default=False,
+        description="Include each sensor's latest imported reading.",
+    ),
+    db: Session = Depends(get_db),
+):
+    if includeLatest:
+        rows = selected_sensor_latest_rows(db)
+        return [
+            serialize_sensor(sensor, latest_reading)
+            for sensor, latest_reading in rows
+        ]
+
     sensors = (
         db.query(SensorPoint)
         .filter(SensorPoint.is_selected.is_(True))
@@ -100,18 +163,48 @@ def get_sensor(sensor_code: str, db: Session = Depends(get_db)):
     if sensor is None:
         raise HTTPException(status_code=404, detail="Sensor not found.")
 
-    return serialize_sensor(sensor)
+    latest_reading = (
+        db.query(SensorReading)
+        .filter(SensorReading.sensor_point_id == sensor.sensor_point_id)
+        .order_by(SensorReading.reading_time.desc())
+        .first()
+    )
+
+    return serialize_sensor(sensor, latest_reading)
 
 
 @app.get(
+    "/api/v1/sensors/{sensor_code}/readings",
+    response_model=SensorReadingsResponse,
+)
+@app.get(
     "/api/v1/readings/{sensor_code}",
     response_model=SensorReadingsResponse,
+    include_in_schema=False,
 )
 def get_sensor_readings(
     sensor_code: str,
+    start: datetime | None = Query(
+        default=None,
+        description="Inclusive start timestamp in ISO-8601 format.",
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="Inclusive end timestamp in ISO-8601 format.",
+    ),
+    interval: ReadingInterval = Query(
+        default="raw",
+        description="Return raw, 15-minute, hourly, or daily points.",
+    ),
     limit: int = Query(default=500, ge=1, le=10_000),
     db: Session = Depends(get_db),
 ):
+    if start and end and start > end:
+        raise HTTPException(
+            status_code=400,
+            detail="The start timestamp must be before the end timestamp.",
+        )
+
     sensor = (
         db.query(SensorPoint)
         .filter(SensorPoint.sensor_code == sensor_code)
@@ -121,16 +214,36 @@ def get_sensor_readings(
     if sensor is None:
         raise HTTPException(status_code=404, detail="Sensor not found.")
 
-    readings = (
-        db.query(SensorReading)
-        .filter(SensorReading.sensor_point_id == sensor.sensor_point_id)
-        .order_by(SensorReading.reading_time.desc())
-        .limit(limit)
-        .all()
+    query = db.query(SensorReading).filter(
+        SensorReading.sensor_point_id == sensor.sensor_point_id
     )
-    readings.reverse()
+
+    if start:
+        query = query.filter(SensorReading.reading_time >= start)
+
+    if end:
+        query = query.filter(SensorReading.reading_time <= end)
+
+    if interval == "raw":
+        readings = (
+            query.order_by(SensorReading.reading_time.desc())
+            .limit(limit)
+            .all()
+        )
+        readings.reverse()
+    else:
+        # Phase 1 imports at most 10,000 readings per sensor, so filtered
+        # aggregation remains bounded while avoiding database-specific SQL.
+        readings = query.order_by(SensorReading.reading_time.asc()).all()
+
+    points = serialize_readings(sensor, readings, interval, limit)
 
     return {
+        "datasetType": "historical",
+        "interval": interval,
+        "start": start,
+        "end": end,
+        "pointCount": len(points),
         "sensor": {
             "sensorCode": sensor.sensor_code,
             "displayName": sensor.display_name,
@@ -143,14 +256,7 @@ def get_sensor_readings(
             "dataType": sensor.data_type,
             "location": sensor.location,
         },
-        "points": [
-            {
-                "timestamp": reading.reading_time,
-                "rawValue": reading.value,
-                "value": scale_value(sensor, reading.value),
-            }
-            for reading in readings
-        ],
+        "points": points,
     }
 
 
@@ -159,7 +265,7 @@ def get_sensor_readings(
     response_model=DashboardOverviewResponse,
 )
 def get_dashboard_overview(db: Session = Depends(get_db)):
-    core_sensor_codes = [
+    core_sensor_codes = {
         "30000_TL342",
         "30000_TL335",
         "30000_TL3",
@@ -172,26 +278,15 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
         "30000_TL211",
         "30000_TL212",
         "20000_TL92",
-    ]
+    }
 
+    rows = selected_sensor_latest_rows(db)
     cards = []
     latest_dataset_timestamp = None
 
-    for sensor_code in core_sensor_codes:
-        sensor = (
-            db.query(SensorPoint)
-            .filter(SensorPoint.sensor_code == sensor_code)
-            .first()
-        )
-        if sensor is None:
+    for sensor, latest_reading in rows:
+        if sensor.sensor_code not in core_sensor_codes:
             continue
-
-        latest_reading = (
-            db.query(SensorReading)
-            .filter(SensorReading.sensor_point_id == sensor.sensor_point_id)
-            .order_by(SensorReading.reading_time.desc())
-            .first()
-        )
 
         if latest_reading and (
             latest_dataset_timestamp is None

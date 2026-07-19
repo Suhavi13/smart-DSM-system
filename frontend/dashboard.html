@@ -24,41 +24,40 @@
         <div>
           <h1>Good morning, <span id="currentUser">Operator</span></h1>
         </div>
-        <div class="dashboard-update">
-          <span class="live-dot" aria-hidden="true"></span>
-          Updated 2 minutes ago
+        <div class="dashboard-update" id="dashboardDataTimestamp">
+          Historical data prototype
         </div>
       </section>
 
       <section class="summary-grid" aria-label="Building summary">
         <article class="summary-card summary-temperature">
-          <div class="summary-card-top"><span>Temperature</span></div>
+          <div class="summary-card-top"><span>Temperature (sample)</span></div>
           <p class="summary-value">22.4<span>&deg;C</span></p>
           <p class="summary-note positive">Within comfort range</p>
         </article>
         <article class="summary-card summary-humidity">
-          <div class="summary-card-top"><span>Humidity</span></div>
+          <div class="summary-card-top"><span>Humidity (sample)</span></div>
           <p class="summary-value">46<span>%</span></p>
           <p class="summary-note">Target: 40-60%</p>
         </article>
         <article class="summary-card summary-energy">
-          <div class="summary-card-top"><span>Energy usage</span></div>
+          <div class="summary-card-top"><span>Energy usage (sample)</span></div>
           <p class="summary-value">18.7<span> kWh</span></p>
           <p class="summary-note positive">8% below yesterday</p>
         </article>
         <article class="summary-card summary-price">
-          <div class="summary-card-top"><span>Electricity price</span></div>
+          <div class="summary-card-top"><span>Electricity price (sample)</span></div>
           <p class="summary-value">0.14<span> /kWh</span></p>
           <p class="summary-note">Current sample rate</p>
         </article>
         <article class="summary-card summary-status">
-          <div class="summary-card-top"><span>System status</span></div>
-          <p class="summary-value summary-status-value">Normal</p>
-          <p class="summary-note positive">All major systems online</p>
+          <div class="summary-card-top"><span>Prototype status</span></div>
+          <p class="summary-value summary-status-value">Historical</p>
+          <p class="summary-note positive">Imported readings available</p>
         </article>
         <article class="summary-card summary-pending">
           <div class="summary-card-top">
-            <span>Pending recommendations</span>
+            <span>Pending recommendations (sample)</span>
           </div>
           <p class="summary-value">4</p>
           <p class="summary-note warning-text">2 need attention today</p>
@@ -73,7 +72,7 @@
           <div class="panel-heading">
             <div>
               <h2>Indoor conditions</h2>
-              <p>Temperature and humidity over 24 hours</p>
+              <p>UI sample only — not connected to imported readings</p>
             </div>
           </div>
           <div class="chart-container">
@@ -89,6 +88,29 @@
               <h2>Site Consumption Trend</h2>
               <p>Historical building power consumption in kilowatts</p>
             </div>
+          </div>
+          <div class="chart-filter-bar" aria-label="Site consumption chart filters">
+            <label>
+              Start date
+              <input type="date" id="chartStartDate" />
+            </label>
+            <label>
+              End date
+              <input type="date" id="chartEndDate" />
+            </label>
+            <label>
+              Interval
+              <select id="chartInterval">
+                <option value="raw">Raw</option>
+                <option value="15min">15 minutes</option>
+                <option value="hour" selected>Hourly average</option>
+                <option value="day">Daily average</option>
+              </select>
+            </label>
+            <button type="button" class="primary-button" id="applyChartFilters">
+              Apply
+            </button>
+            <span id="chartFilterStatus" role="status"></span>
           </div>
           <div class="chart-container energy-chart-container">
             <canvas

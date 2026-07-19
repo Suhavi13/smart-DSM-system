@@ -6,46 +6,53 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# Loads backend/.env safely.
+# Load local development settings from backend/.env.
 ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(ENV_FILE)
 
-required_settings = [
-    "POSTGRES_USER",
-    "POSTGRES_PASSWORD",
-    "POSTGRES_HOST",
-    "POSTGRES_PORT",
-    "POSTGRES_DB",
-]
+explicit_database_url = os.getenv("DATABASE_URL")
 
-missing_settings = [
-    setting for setting in required_settings
-    if not os.getenv(setting)
-]
+if explicit_database_url:
+    database_url = explicit_database_url
+else:
+    required_settings = [
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "POSTGRES_DB",
+    ]
 
-if missing_settings:
-    raise RuntimeError(
-        f"Missing database settings in .env: {', '.join(missing_settings)}"
+    missing_settings = [
+        setting for setting in required_settings if not os.getenv(setting)
+    ]
+
+    if missing_settings:
+        raise RuntimeError(
+            "Missing database settings in .env: "
+            + ", ".join(missing_settings)
+        )
+
+    database_url = URL.create(
+        drivername="postgresql+psycopg2",
+        username=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        host=os.getenv("POSTGRES_HOST"),
+        port=int(os.getenv("POSTGRES_PORT")),
+        database=os.getenv("POSTGRES_DB"),
     )
 
-database_url = URL.create(
-    drivername="postgresql+psycopg2",
-    username=os.getenv("POSTGRES_USER"),
-    password=os.getenv("POSTGRES_PASSWORD"),
-    host=os.getenv("POSTGRES_HOST"),
-    port=int(os.getenv("POSTGRES_PORT")),
-    database=os.getenv("POSTGRES_DB"),
-)
+engine_options = {"pool_pre_ping": True}
 
-engine = create_engine(
-    database_url,
-    pool_pre_ping=True
-)
+if str(database_url).startswith("sqlite"):
+    engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(database_url, **engine_options)
 
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine,
 )
 
 
