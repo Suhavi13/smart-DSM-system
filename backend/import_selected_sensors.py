@@ -9,7 +9,7 @@ from backend.app.sensor_metadata import get_sensor_metadata
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXCEL_PATH = PROJECT_ROOT / "docs" / "Sensor_Inventory.xlsx"
-SHEET_NAME = "Selected DSM Sensors"
+SHEET_NAME = "Sheet1"
 
 
 def clean_text(value):
@@ -36,8 +36,7 @@ def main():
         "Trend Column",
         "Sensor Code",
         "Display Name",
-        "Category",
-        "Priority",
+        "Measurement Property",
     ]
 
     missing_columns = [
@@ -50,6 +49,7 @@ def main():
         return
 
     df = df.dropna(subset=["Trend Column", "Sensor Code"])
+    df = df.drop_duplicates(subset=["Sensor Code"], keep="last")
     db = SessionLocal()
 
     try:
@@ -58,16 +58,25 @@ def main():
 
         for _, row in df.iterrows():
             sensor_code = clean_text(row["Sensor Code"])
-            metadata = get_sensor_metadata(sensor_code)
+            source_display_name = clean_text(row["Display Name"])
+            measurement_property = clean_integer(
+                row.get("Measurement Property")
+            )
+            metadata = get_sensor_metadata(
+                sensor_code=sensor_code,
+                display_name=source_display_name,
+                measurement_property=measurement_property,
+            )
 
             sensor_data = {
                 "sensor_code": sensor_code,
                 "trend_column": clean_text(row["Trend Column"]),
-                "display_name": clean_text(row["Display Name"]),
-                "measurement_property": clean_integer(
-                    row.get("Measurement Property")
+                "display_name": metadata["display_name"],
+                "measurement_property": measurement_property,
+                "category": (
+                    clean_text(row.get("Category"))
+                    or metadata.get("category")
                 ),
-                "category": clean_text(row.get("Category")),
                 "priority": clean_text(row.get("Priority")),
                 "why_selected": clean_text(row.get("Why selected")),
                 "dashboard_feature": clean_text(
@@ -79,6 +88,8 @@ def main():
                 "sign_convention": metadata["sign_convention"],
                 "data_type": metadata["data_type"],
                 "location": metadata["location"],
+                # The user requested the complete Sheet1 inventory, so every
+                # row is exposed by the Sensor Data Service.
                 "is_selected": True,
             }
 
@@ -97,11 +108,17 @@ def main():
                 imported_count += 1
 
         db.commit()
-        print(f"Imported: {imported_count} sensor(s)")
-        print(f"Updated: {updated_count} sensor(s)")
+        total_count = imported_count + updated_count
+        print(f"Sheet imported: {SHEET_NAME}")
+        print(f"Inventory rows processed: {total_count}")
+        print(f"New sensors imported: {imported_count}")
+        print(f"Existing sensors updated: {updated_count}")
         print(
-            "Note: unit mappings are provisional until confirmed by the "
-            "client's official data dictionary."
+            "All Sheet1 sensors are marked for API display and reading import."
+        )
+        print(
+            "Naming-derived units remain provisional unless a sensor has a "
+            "confirmed override in backend/app/sensor_metadata.py."
         )
 
     except Exception as error:

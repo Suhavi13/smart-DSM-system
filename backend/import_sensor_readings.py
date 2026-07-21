@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -10,33 +11,10 @@ from backend.app.models import SensorPoint, SensorReading
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = PROJECT_ROOT / "data" / "merged_timeseries_student.csv"
 
-# Import all 19 sensors selected in docs/Sensor_Inventory.xlsx.
-SELECTED_SENSOR_CODES = [
-    "30000_TL212",
-    "30000_TL210",
-    "30000_TL3",
-    "30000_TL335",
-    "30000_TL342",
-    "30000_TL388",
-    "30000_TL211",
-    "30000_TL208",
-    "30000_TL4",
-    "30000_TL209",
-    "30000_TL252",
-    "30000_TL253",
-    "20000_TL92",
-    "20016_TL5",
-    "30000_TL213",
-    "30000_TL343",
-    "30000_TL344",
-    "30000_TL345",
-    "30000_TL207",
-]
-
-CHUNK_SIZE = 100_000
-MAX_ROWS_PER_SENSOR = 10_000
-INSERT_BATCH_SIZE = 5_000
-INVALID_ABSOLUTE_VALUE = 1e12
+CHUNK_SIZE = int(os.getenv("IMPORT_CHUNK_SIZE", "100000"))
+MAX_ROWS_PER_SENSOR = int(os.getenv("MAX_ROWS_PER_SENSOR", "10000"))
+INSERT_BATCH_SIZE = int(os.getenv("INSERT_BATCH_SIZE", "5000"))
+INVALID_ABSOLUTE_VALUE = float(os.getenv("INVALID_ABSOLUTE_VALUE", "1e12"))
 
 
 def insert_rows_in_batches(db, rows_to_insert):
@@ -62,14 +40,37 @@ def main():
     db = SessionLocal()
 
     try:
-        sensors = (
+        inventory_sensors = (
             db.query(SensorPoint)
-            .filter(SensorPoint.sensor_code.in_(SELECTED_SENSOR_CODES))
+            .filter(SensorPoint.is_selected.is_(True))
+            .order_by(SensorPoint.sensor_code)
             .all()
         )
 
+        if not inventory_sensors:
+            print("No inventory sensors found in PostgreSQL.")
+            print("Run: py -m backend.import_selected_sensors")
+            return
+
+        csv_columns = set(pd.read_csv(CSV_PATH, nrows=0).columns)
+        sensors = [
+            sensor
+            for sensor in inventory_sensors
+            if sensor.trend_column in csv_columns
+        ]
+        missing_from_csv = [
+            sensor.trend_column
+            for sensor in inventory_sensors
+            if sensor.trend_column not in csv_columns
+        ]
+
+        if missing_from_csv:
+            print("Database sensors missing from CSV:")
+            for trend_column in missing_from_csv:
+                print(f"  - {trend_column}")
+
         if not sensors:
-            print("No matching selected sensors found in PostgreSQL.")
+            print("None of the PostgreSQL sensor columns exist in the CSV.")
             return
 
         sensor_map = {
@@ -79,30 +80,23 @@ def main():
             }
             for sensor in sensors
         }
-
-        missing_sensor_codes = sorted(
-            set(SELECTED_SENSOR_CODES)
-            - {sensor.sensor_code for sensor in sensors}
-        )
-        if missing_sensor_codes:
-            print(
-                "Selected sensors missing from PostgreSQL: "
-                + ", ".join(missing_sensor_codes)
-            )
-            print("Run import_selected_sensors.py before importing readings.")
-
         columns_to_read = ["ts", *sensor_map.keys()]
 
-        print("Reading CSV in chunks...")
-        print("Selected sensors found:", len(sensors))
+        print("Reading the historical CSV in chunks...")
+        print(f"Inventory sensors in PostgreSQL: {len(inventory_sensors)}")
+        print(f"Matching sensor columns in CSV: {len(sensors)}")
+        print(f"Maximum readings retained per sensor: {MAX_ROWS_PER_SENSOR:,}")
+        print(
+            "Maximum rows prepared: "
+            f"{len(sensors) * MAX_ROWS_PER_SENSOR:,}"
+        )
 
-        # Keep only the newest rows per sensor while processing. This avoids
-        # retaining every reading from the 600 MB CSV in memory.
+        # The CSV is chronological. Retaining the tail after every chunk keeps
+        # the latest N valid readings per sensor without loading the full CSV.
         latest_rows = {
             trend_column: pd.DataFrame(columns=["ts", trend_column])
             for trend_column in sensor_map
         }
-
         rejected_extreme_values = 0
 
         for chunk_number, chunk in enumerate(
@@ -120,11 +114,13 @@ def main():
                     chunk[trend_column],
                     errors="coerce",
                 )
-
                 valid_mask = chunk["ts"].notna() & numeric_values.notna()
                 extreme_mask = numeric_values.abs() > INVALID_ABSOLUTE_VALUE
                 rejected_extreme_values += int((valid_mask & extreme_mask).sum())
                 valid_mask &= ~extreme_mask
+
+                if not valid_mask.any():
+                    continue
 
                 valid_rows = pd.DataFrame(
                     {
@@ -132,63 +128,61 @@ def main():
                         trend_column: numeric_values.loc[valid_mask],
                     }
                 )
-
-                if valid_rows.empty:
-                    continue
-
                 latest_rows[trend_column] = pd.concat(
                     [latest_rows[trend_column], valid_rows],
                     ignore_index=True,
                 ).tail(MAX_ROWS_PER_SENSOR)
 
-            print(f"Processed chunk {chunk_number}")
+            print(f"Processed CSV chunk {chunk_number}")
 
         total_prepared = 0
         total_inserted = 0
+        sensors_with_readings = 0
 
-        # Insert one sensor at a time. This keeps the final insert list bounded
-        # to 10,000 dictionaries instead of building one 190,000-row list.
-        for trend_column, readings_df in latest_rows.items():
+        # Commit each sensor separately. A full 124-sensor import can prepare
+        # up to 1.24 million rows, so smaller transactions are safer and easier
+        # to resume. Duplicate timestamps are ignored on reruns.
+        for sensor_number, (trend_column, readings_df) in enumerate(
+            latest_rows.items(),
+            start=1,
+        ):
             if readings_df.empty:
                 print(f"No usable readings found for {trend_column}")
                 continue
 
             sensor_data = sensor_map[trend_column]
-            sensor_rows = []
-
-            for reading_time, value in readings_df.itertuples(
-                index=False,
-                name=None,
-            ):
-                sensor_rows.append(
-                    {
-                        "sensor_point_id": sensor_data["sensor_point_id"],
-                        "reading_time": reading_time.to_pydatetime(),
-                        "value": float(value),
-                    }
+            sensor_rows = [
+                {
+                    "sensor_point_id": sensor_data["sensor_point_id"],
+                    "reading_time": reading_time.to_pydatetime(),
+                    "value": float(value),
+                }
+                for reading_time, value in readings_df.itertuples(
+                    index=False,
+                    name=None,
                 )
+            ]
 
             prepared_count = len(sensor_rows)
             inserted_count = insert_rows_in_batches(db, sensor_rows)
+            db.commit()
+
             total_prepared += prepared_count
             total_inserted += inserted_count
+            sensors_with_readings += 1
 
             print(
+                f"[{sensor_number}/{len(sensor_map)}] "
                 f"{sensor_data['sensor_code']}: "
-                f"{prepared_count} readings prepared, "
-                f"{inserted_count} inserted"
+                f"{prepared_count:,} prepared, "
+                f"{inserted_count:,} inserted"
             )
 
-        if total_prepared == 0:
-            print("No readings were prepared for import.")
-            return
-
-        db.commit()
-
-        print("Import complete.")
-        print(f"Rows prepared: {total_prepared}")
-        print(f"Rows inserted: {total_inserted}")
-        print(f"Extreme/sentinel values skipped: {rejected_extreme_values}")
+        print("Reading import complete.")
+        print(f"Sensors with usable readings: {sensors_with_readings}")
+        print(f"Rows prepared: {total_prepared:,}")
+        print(f"Rows inserted: {total_inserted:,}")
+        print(f"Extreme/sentinel values skipped: {rejected_extreme_values:,}")
 
     except Exception as error:
         db.rollback()

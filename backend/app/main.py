@@ -19,9 +19,9 @@ ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
     title="GBTAC Sensor Data Service",
-    version="0.2.0",
+    version="0.2.1",
     description=(
-        "Read-only API for selected historical GBTAC sensor metadata, "
+        "Read-only API for the full historical GBTAC sensor inventory, "
         "latest values, date-filtered readings, and chart aggregation."
     ),
 )
@@ -73,8 +73,8 @@ def serialize_sensor(
     }
 
 
-def selected_sensor_latest_rows(db: Session):
-    """Fetch selected sensors and their latest readings in one DB query."""
+def inventory_sensor_latest_rows(db: Session):
+    """Fetch all imported inventory sensors and their latest readings."""
     latest_times = (
         db.query(
             SensorReading.sensor_point_id.label("sensor_point_id"),
@@ -113,7 +113,7 @@ def health_check():
     return {
         "status": "ok",
         "service": "GBTAC Sensor Data Service",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "datasetType": "historical",
     }
 
@@ -122,7 +122,7 @@ def health_check():
     "/api/v1/sensors",
     response_model=list[SensorSummaryResponse],
 )
-def get_selected_sensors(
+def get_sensors(
     includeLatest: bool = Query(
         default=False,
         description="Include each sensor's latest imported reading.",
@@ -130,7 +130,7 @@ def get_selected_sensors(
     db: Session = Depends(get_db),
 ):
     if includeLatest:
-        rows = selected_sensor_latest_rows(db)
+        rows = inventory_sensor_latest_rows(db)
         return [
             serialize_sensor(sensor, latest_reading)
             for sensor, latest_reading in rows
@@ -280,7 +280,7 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
         "20000_TL92",
     }
 
-    rows = selected_sensor_latest_rows(db)
+    rows = inventory_sensor_latest_rows(db)
     cards = []
     latest_dataset_timestamp = None
 

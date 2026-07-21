@@ -1,18 +1,13 @@
-"""Display metadata for the selected Phase 1 sensors.
+"""Metadata inference and confirmed overrides for GBTAC sensors.
 
+Sheet1 contains the complete inventory. General metadata is inferred
+conservatively from the supplied naming rules, and confirmed/specific points
+are then overlaid using SENSOR_METADATA.
 """
 
 from typing import Any
 
-
-DEFAULT_SENSOR_METADATA: dict[str, Any] = {
-    "raw_unit": "unconfirmed",
-    "display_unit": "unconfirmed",
-    "scale_factor": 1.0,
-    "sign_convention": "Preserve the source value sign.",
-    "data_type": "numeric",
-    "location": "GBTAC building",
-}
+from .sensor_naming import infer_inventory_identity
 
 
 SENSOR_METADATA: dict[str, dict[str, Any]] = {
@@ -115,7 +110,9 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
         "raw_unit": "°C",
         "display_unit": "°C",
         "scale_factor": 1.0,
-        "data_type": "temperature",
+        "data_type": "outside_temperature",
+        "category": "Temperature",
+        "location": "Outside building",
     },
     "30000_TL207": {
         "raw_unit": "°C",
@@ -128,6 +125,8 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
         "display_unit": "ppm",
         "scale_factor": 1.0,
         "data_type": "co2",
+        "category": "Air Quality",
+        "location": "Inside building",
     },
     "30000_TL4": {
         "raw_unit": "%",
@@ -138,8 +137,16 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
 }
 
 
-def get_sensor_metadata(sensor_code: str) -> dict[str, Any]:
-    """Return a complete metadata dictionary for a sensor code."""
-    metadata = DEFAULT_SENSOR_METADATA.copy()
+def get_sensor_metadata(
+    sensor_code: str,
+    display_name: str | None = None,
+    measurement_property: int | None = None,
+) -> dict[str, Any]:
+    """Return naming-derived metadata with exact sensor overrides applied."""
+    metadata = infer_inventory_identity(
+        sensor_code=sensor_code,
+        display_name=display_name,
+        measurement_property=measurement_property,
+    )
     metadata.update(SENSOR_METADATA.get(sensor_code, {}))
     return metadata

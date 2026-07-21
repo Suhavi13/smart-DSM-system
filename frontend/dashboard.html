@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GBTAC dashboard</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=2" />
   </head>
   <body>
     <header class="topbar">
@@ -46,7 +46,9 @@
           <p class="summary-note positive">8% below yesterday</p>
         </article>
         <article class="summary-card summary-price">
-          <div class="summary-card-top"><span>Electricity price (sample)</span></div>
+          <div class="summary-card-top">
+            <span>Electricity price (sample)</span>
+          </div>
           <p class="summary-value">0.14<span> /kWh</span></p>
           <p class="summary-note">Current sample rate</p>
         </article>
@@ -89,7 +91,10 @@
               <p>Historical building power consumption in kilowatts</p>
             </div>
           </div>
-          <div class="chart-filter-bar" aria-label="Site consumption chart filters">
+          <div
+            class="chart-filter-bar"
+            aria-label="Site consumption chart filters"
+          >
             <label>
               Start date
               <input type="date" id="chartStartDate" />
@@ -185,9 +190,9 @@
 
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js"></script>
-    <script src="api.js"></script>
-    <script src="script.js"></script>
-    <script src="backend-data.js"></script>
+    <script src="config.js?v=2"></script>
+    <script src="api.js?v=2"></script>
+    <script src="script.js?v=2"></script>
+    <script src="backend-data.js?v=phase2-7"></script>
   </body>
 </html>
