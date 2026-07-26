@@ -6,25 +6,45 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
+from .dashboard_sensors import (
+    INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES,
+    INDOOR_CO2_SENSOR_CODE,
+    INDOOR_TEMPERATURE_SENSOR_CODES,
+    INDOOR_WALL_TEMPERATURE_SENSOR_CODES,
+)
 from .database import get_db
 from .models import SensorPoint, SensorReading
 from .schemas import (
     DashboardOverviewResponse,
+    IndoorConditionsResponse,
     SensorReadingsResponse,
     SensorSummaryResponse,
+    WeatherForecastResponse,
 )
-from .services import scale_value, serialize_readings
+from .services import (
+    aggregate_temperature_sensor_group,
+    scale_value,
+    serialize_readings,
+)
+from .weather_service import (
+    WeatherProviderError,
+    get_weather_forecast,
+)
+
+from .routers.decisions import router as decisions_router
 
 ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
     title="GBTAC Sensor Data Service",
-    version="0.2.1",
+    version="0.2.3",
     description=(
         "Read-only API for the full historical GBTAC sensor inventory, "
-        "latest values, date-filtered readings, and chart aggregation."
+        "latest values, date-filtered readings, chart aggregation, and "
+        "weather forecast integration."
     ),
 )
+app.include_router(decisions_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,7 +56,8 @@ app.add_middleware(
     ],
     allow_credentials=False,
     allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-Decision-Key",
+    "Idempotency-Key"],
 )
 
 
@@ -113,9 +134,20 @@ def health_check():
     return {
         "status": "ok",
         "service": "GBTAC Sensor Data Service",
-        "version": "0.2.1",
+        "version": "0.2.3",
         "datasetType": "historical",
     }
+
+
+@app.get(
+    "/api/v1/external/weather/forecast",
+    response_model=WeatherForecastResponse,
+)
+def get_weather_dashboard_forecast():
+    try:
+        return get_weather_forecast()
+    except WeatherProviderError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
 
 @app.get(
@@ -256,6 +288,151 @@ def get_sensor_readings(
             "dataType": sensor.data_type,
             "location": sensor.location,
         },
+        "points": points,
+    }
+
+
+@app.get(
+    "/api/v1/dashboard/indoor-conditions",
+    response_model=IndoorConditionsResponse,
+)
+def get_indoor_conditions(
+    start: datetime | None = Query(
+        default=None,
+        description="Inclusive start timestamp in ISO-8601 format.",
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="Inclusive end timestamp in ISO-8601 format.",
+    ),
+    interval: ReadingInterval = Query(
+        default="hour",
+        description="Return raw, 15-minute, hourly, or daily points.",
+    ),
+    limit: int = Query(default=500, ge=1, le=10_000),
+    db: Session = Depends(get_db),
+):
+    """Return an equal-weight average of 31 confirmed temperature sensors."""
+    if start and end and start > end:
+        raise HTTPException(
+            status_code=400,
+            detail="The start timestamp must be before the end timestamp.",
+        )
+
+    temperature_sensors = (
+        db.query(SensorPoint)
+        .filter(
+            SensorPoint.sensor_code.in_(INDOOR_TEMPERATURE_SENSOR_CODES)
+        )
+        .all()
+    )
+
+    if not temperature_sensors:
+        raise HTTPException(
+            status_code=404,
+            detail="No configured indoor temperature sensors were found.",
+        )
+
+    found_codes = {sensor.sensor_code for sensor in temperature_sensors}
+    missing_codes = [
+        sensor_code
+        for sensor_code in INDOOR_TEMPERATURE_SENSOR_CODES
+        if sensor_code not in found_codes
+    ]
+    temperature_sensor_ids = [
+        sensor.sensor_point_id for sensor in temperature_sensors
+    ]
+
+    temperature_query = db.query(SensorReading).filter(
+        SensorReading.sensor_point_id.in_(temperature_sensor_ids)
+    )
+
+    if start:
+        temperature_query = temperature_query.filter(
+            SensorReading.reading_time >= start
+        )
+
+    if end:
+        temperature_query = temperature_query.filter(
+            SensorReading.reading_time <= end
+        )
+
+    temperature_readings = temperature_query.order_by(
+        SensorReading.reading_time.asc()
+    ).all()
+    temperature_points = aggregate_temperature_sensor_group(
+        sensors=temperature_sensors,
+        readings=temperature_readings,
+        interval=interval,
+        limit=limit,
+    )
+
+    co2_sensor = (
+        db.query(SensorPoint)
+        .filter(SensorPoint.sensor_code == INDOOR_CO2_SENSOR_CODE)
+        .first()
+    )
+    co2_values_by_timestamp = {}
+    co2_unit = "ppm"
+
+    if co2_sensor is not None:
+        co2_unit = co2_sensor.display_unit or "ppm"
+        co2_query = db.query(SensorReading).filter(
+            SensorReading.sensor_point_id == co2_sensor.sensor_point_id
+        )
+
+        if start:
+            co2_query = co2_query.filter(
+                SensorReading.reading_time >= start
+            )
+
+        if end:
+            co2_query = co2_query.filter(
+                SensorReading.reading_time <= end
+            )
+
+        co2_readings = co2_query.order_by(
+            SensorReading.reading_time.asc()
+        ).all()
+        co2_points = serialize_readings(
+            co2_sensor,
+            co2_readings,
+            interval,
+            limit,
+        )
+        co2_values_by_timestamp = {
+            point["timestamp"]: point["value"]
+            for point in co2_points
+        }
+
+    points = [
+        {
+            **point,
+            "co2Ppm": co2_values_by_timestamp.get(point["timestamp"]),
+        }
+        for point in temperature_points
+    ]
+
+    return {
+        "datasetType": "historical",
+        "interval": interval,
+        "start": start,
+        "end": end,
+        "pointCount": len(points),
+        "configuredTemperatureSensorCount": len(
+            INDOOR_TEMPERATURE_SENSOR_CODES
+        ),
+        "availableTemperatureSensorCount": len(temperature_sensors),
+        "ambientTemperatureSensorCount": len(
+            INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES
+        ),
+        "wallTemperatureSensorCount": len(
+            INDOOR_WALL_TEMPERATURE_SENSOR_CODES
+        ),
+        "missingTemperatureSensorCodes": missing_codes,
+        "temperatureUnit": "°C",
+        "co2SensorCode": INDOOR_CO2_SENSOR_CODE,
+        "co2Unit": co2_unit,
         "points": points,
     }
 

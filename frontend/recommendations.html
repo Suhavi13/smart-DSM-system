@@ -1,28 +1,72 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GBTAC recommendations</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div class="topbar-title"><span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span></div>
-    <nav class="topnav" aria-label="Primary navigation">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="sensors.html">Sensors</a>
-      <a href="recommendations.html" class="active">Recommendations</a>
-      <a href="index.html" class="btn btn-secondary">Log out</a>
-    </nav>
-  </header>
-  <main class="page-layout recommendations-page">
-    <section class="dashboard-heading">
-      <div><p class="dashboard-eyebrow"></p><h1>Recommendations</h1><p></p></div>
-    </section>
-    <section id="recommendationList" class="recommendation-list" aria-label="Building recommendations"></section>
-  </main>
-  <footer class="site-footer"><p></p></footer>
-  <script src="script.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GBTAC recommendations</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
+      </div>
+      <nav class="topnav" aria-label="Primary navigation">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="sensors.html">Sensors</a>
+        <a href="recommendations.html" class="active">Recommendations</a>
+        <a href="index.html" class="btn btn-secondary">Log out</a>
+      </nav>
+    </header>
+    <main class="page-layout recommendations-page">
+      <section class="dashboard-heading">
+        <div>
+          <p class="dashboard-eyebrow"></p>
+          <h1>Recommendations</h1>
+          <p></p>
+        </div>
+      </section>
+      <section
+        id="recommendationList"
+        class="recommendation-list"
+        aria-label="Building recommendations"
+      ></section>
+    </main>
+    <article
+      class="recommendation-card"
+      data-recommendation-id="hvac-schedule-001"
+      data-recommendation-version="1"
+    >
+      <h3 class="recommendation-title">Optimize HVAC operating schedule</h3>
+
+      <p class="recommendation-description">
+        Adjust the HVAC schedule to reduce unnecessary operation outside
+        occupied hours.
+      </p>
+
+      <div class="recommendation-actions">
+        <button
+          type="button"
+          class="approve-button"
+          data-decision-action="approved"
+        >
+          Approve
+        </button>
+
+        <button
+          type="button"
+          class="reject-button"
+          data-decision-action="rejected"
+        >
+          Disapprove
+        </button>
+      </div>
+
+      <p class="decision-status" role="status" aria-live="polite"></p>
+    </article>
+    <footer class="site-footer"><p></p></footer>
+    <script src="script.js"></script>
+    <script src="config.js?v=3"></script>
+    <script src="decisions.js?v=3"></script>
+  </body>
 </html>

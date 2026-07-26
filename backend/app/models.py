@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import (
     Boolean,
@@ -10,6 +10,10 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    CheckConstraint,
+    JSON,
+    Text,
+    func
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -106,6 +110,7 @@ class SensorPoint(Base):
 
 
 class SensorReading(Base):
+
     __tablename__ = "sensor_readings"
 
     reading_id: Mapped[int] = mapped_column(
@@ -136,4 +141,70 @@ class SensorReading(Base):
             "reading_time",
             name="unique_sensor_reading",
         ),
+    )
+
+class RecommendationDecision(Base):
+    __tablename__ = "recommendation_decisions"
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('approved', 'rejected')",
+            name="ck_recommendation_decisions_action",
+        ),
+        UniqueConstraint(
+            "recommendation_id",
+            "recommendation_version",
+            name="uq_recommendation_decision_version",
+        ),
+    )
+
+    decision_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    recommendation_id: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+
+    recommendation_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+
+    action: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+
+    comment: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    operator_label: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    recommendation_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        nullable=False,
+    )
+
+    idempotency_key: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )

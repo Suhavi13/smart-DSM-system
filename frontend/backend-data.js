@@ -1,3 +1,6 @@
+const SITE_CONSUMPTION_SENSOR_CODE =
+  window.APP_CONFIG.SITE_CONSUMPTION_SENSOR_CODE || "30000_TL342";
+
 function formatValue(value) {
   const number = Number(value);
 
@@ -18,9 +21,13 @@ function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleString();
 }
 
+function formatValueWithUnit(value, unit) {
+  const formattedValue = formatValue(value);
+  return formattedValue === "—" ? formattedValue : `${formattedValue}${unit}`;
+}
+
 async function loadSensorsFromBackend() {
   try {
-    // Phase 2 returns metadata and latest readings in one database/API call.
     const apiSensors = await apiGet("/sensors?includeLatest=true");
 
     buildingSensors = apiSensors.map((sensor) => ({
@@ -74,11 +81,16 @@ async function loadHistoricalDatasetTimestamp() {
   }
 }
 
-function buildChartReadingsPath() {
-  const startDate = document.getElementById("chartStartDate")?.value;
-  const endDate = document.getElementById("chartEndDate")?.value;
+function buildSensorReadingsPath({
+  sensorCode,
+  startInputId,
+  endInputId,
+  intervalInputId
+}) {
+  const startDate = document.getElementById(startInputId)?.value;
+  const endDate = document.getElementById(endInputId)?.value;
   const interval =
-    document.getElementById("chartInterval")?.value || "hour";
+    document.getElementById(intervalInputId)?.value || "hour";
   const parameters = new URLSearchParams({
     interval,
     limit: "500"
@@ -92,7 +104,205 @@ function buildChartReadingsPath() {
     parameters.set("end", `${endDate}T23:59:59`);
   }
 
-  return `/sensors/30000_TL342/readings?${parameters.toString()}`;
+  return `/sensors/${encodeURIComponent(
+    sensorCode
+  )}/readings?${parameters.toString()}`;
+}
+
+function buildIndoorConditionsPath() {
+  const startDate = document.getElementById("conditionsStartDate")?.value;
+  const endDate = document.getElementById("conditionsEndDate")?.value;
+  const interval =
+    document.getElementById("conditionsInterval")?.value || "hour";
+  const parameters = new URLSearchParams({
+    interval,
+    limit: "500"
+  });
+
+  if (startDate) {
+    parameters.set("start", `${startDate}T00:00:00`);
+  }
+
+  if (endDate) {
+    parameters.set("end", `${endDate}T23:59:59`);
+  }
+
+  return `/dashboard/indoor-conditions?${parameters.toString()}`;
+}
+
+async function loadConditionsChart() {
+  const chartCanvas = document.getElementById("conditionsChart");
+  const statusElement = document.getElementById(
+    "conditionsFilterStatus"
+  );
+
+  if (!chartCanvas || typeof Chart === "undefined") {
+    return;
+  }
+
+  if (statusElement) {
+    statusElement.textContent = "Calculating 31-sensor average…";
+  }
+
+  try {
+    const data = await apiGet(buildIndoorConditionsPath());
+    const existingChart = Chart.getChart(chartCanvas);
+
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    const temperatureUnit = data.temperatureUnit || "°C";
+    const co2Unit = data.co2Unit || "ppm";
+    const hasCo2Data = data.points.some(
+      (point) => Number.isFinite(Number(point.co2Ppm))
+    );
+    const datasets = [
+      {
+        label: `Average indoor + wall temperature (${temperatureUnit})`,
+        data: data.points.map((point) =>
+          Number(point.averageTemperatureC)
+        ),
+        borderColor: "#1E9DD1",
+        backgroundColor: "rgba(30, 157, 209, 0.12)",
+        yAxisID: "temperatureAxis",
+        tension: 0.3,
+        pointRadius: data.interval === "raw" ? 1 : 2,
+        spanGaps: true,
+        fill: true
+      }
+    ];
+
+    if (hasCo2Data) {
+      datasets.push({
+        label: `CO₂ (${co2Unit})`,
+        data: data.points.map((point) =>
+          Number.isFinite(Number(point.co2Ppm))
+            ? Number(point.co2Ppm)
+            : null
+        ),
+        borderColor: "#5A0E6F",
+        backgroundColor: "transparent",
+        yAxisID: "airQualityAxis",
+        tension: 0.3,
+        pointRadius: data.interval === "raw" ? 1 : 2,
+        spanGaps: true
+      });
+    }
+
+    new Chart(chartCanvas, {
+      type: "line",
+      data: {
+        labels: data.points.map((point) =>
+          new Date(point.timestamp).toLocaleString()
+        ),
+        datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top"
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const unit =
+                  context.dataset.yAxisID === "airQualityAxis"
+                    ? co2Unit
+                    : temperatureUnit;
+                return `${context.dataset.label}: ${formatValue(
+                  context.parsed.y
+                )} ${unit}`;
+              },
+              afterLabel: (context) => {
+                if (context.dataset.yAxisID !== "temperatureAxis") {
+                  return "";
+                }
+
+                const point = data.points[context.dataIndex];
+                return [
+                  `Sensor range: ${formatValue(
+                    point.minimumTemperatureC
+                  )}–${formatValue(
+                    point.maximumTemperatureC
+                  )} ${temperatureUnit}`,
+                  `Sensors contributing: ${point.contributingSensorCount}`
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 6,
+              maxRotation: 0
+            }
+          },
+          temperatureAxis: {
+            type: "linear",
+            position: "left",
+            title: {
+              display: true,
+              text: `Average temperature (${temperatureUnit})`
+            },
+            ticks: {
+              callback: (value) => `${value} ${temperatureUnit}`
+            }
+          },
+          airQualityAxis: {
+            type: "linear",
+            position: "right",
+            display: hasCo2Data,
+            title: {
+              display: hasCo2Data,
+              text: `CO₂ (${co2Unit})`
+            },
+            ticks: {
+              callback: (value) => `${value} ${co2Unit}`
+            },
+            grid: {
+              drawOnChartArea: false
+            }
+          }
+        }
+      }
+    });
+
+    if (statusElement) {
+      const missingText = data.missingTemperatureSensorCodes.length
+        ? `; ${data.missingTemperatureSensorCodes.length} sensor(s) missing`
+        : "";
+      statusElement.textContent =
+        `${data.pointCount} ${data.interval} point${
+          data.pointCount === 1 ? "" : "s"
+        } • ${data.availableTemperatureSensorCount}/` +
+        `${data.configuredTemperatureSensorCount} temperature sensors` +
+        missingText;
+    }
+  } catch (error) {
+    console.error("Could not load conditions chart:", error);
+
+    if (statusElement) {
+      statusElement.textContent = error.message;
+    }
+  }
+}
+
+function buildSiteConsumptionReadingsPath() {
+  return buildSensorReadingsPath({
+    sensorCode: SITE_CONSUMPTION_SENSOR_CODE,
+    startInputId: "chartStartDate",
+    endInputId: "chartEndDate",
+    intervalInputId: "chartInterval"
+  });
 }
 
 async function loadSiteConsumptionChart() {
@@ -108,7 +318,7 @@ async function loadSiteConsumptionChart() {
   }
 
   try {
-    const data = await apiGet(buildChartReadingsPath());
+    const data = await apiGet(buildSiteConsumptionReadingsPath());
     const existingChart = Chart.getChart(chartCanvas);
 
     if (existingChart) {
@@ -126,7 +336,6 @@ async function loadSiteConsumptionChart() {
         datasets: [
           {
             label: `${data.sensor.displayName} (${displayUnit})`,
-            // Scaling happens in the backend. Valid negative values remain.
             data: data.points.map((point) => Number(point.value)),
             borderColor: "#1E9DD1",
             backgroundColor: "rgba(30, 157, 209, 0.12)",
@@ -197,19 +406,198 @@ async function loadSiteConsumptionChart() {
   }
 }
 
+function weatherSymbolForCode(code) {
+  const number = Number(code);
+
+  if (number === 0) return "☀";
+  if ([1, 2].includes(number)) return "🌤";
+  if (number === 3) return "☁";
+  if ([45, 48].includes(number)) return "🌫";
+  if ([51, 53, 55, 56, 57].includes(number)) return "🌦";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(number)) {
+    return "🌧";
+  }
+  if ([71, 73, 75, 77, 85, 86].includes(number)) return "🌨";
+  if ([95, 96, 99].includes(number)) return "⛈";
+  return "☁";
+}
+
+function formatForecastDate(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+async function loadWeatherForecastChart() {
+  const chartCanvas = document.getElementById("weatherForecastChart");
+  const statusElement = document.getElementById("weatherApiStatus");
+
+  if (!chartCanvas || typeof Chart === "undefined") {
+    return;
+  }
+
+  if (statusElement) {
+    statusElement.textContent = "Loading";
+  }
+
+  try {
+    const data = await apiGet("/external/weather/forecast");
+    const today = data.daily[0] || {};
+
+    document.getElementById("weatherSymbol").textContent =
+      weatherSymbolForCode(data.current.weatherCode);
+    document.getElementById("weatherCurrentTemperature").textContent =
+      formatValueWithUnit(data.current.temperatureC, "°C");
+    document.getElementById("weatherCurrentCondition").textContent =
+      data.current.condition || "Unknown conditions";
+    document.getElementById("weatherCurrentHumidity").textContent =
+      formatValueWithUnit(data.current.humidityPercent, "%");
+    document.getElementById("weatherTodayHigh").textContent =
+      formatValueWithUnit(today.maximumTemperatureC, "°C");
+    document.getElementById("weatherTodayLow").textContent =
+      formatValueWithUnit(today.minimumTemperatureC, "°C");
+
+    const retrievedAtElement = document.getElementById(
+      "weatherRetrievedAt"
+    );
+    if (retrievedAtElement) {
+      retrievedAtElement.textContent = data.retrievedAt
+        ? ` Forecast timestamp: ${formatTimestamp(data.retrievedAt)}.`
+        : "";
+    }
+
+    const existingChart = Chart.getChart(chartCanvas);
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    new Chart(chartCanvas, {
+      type: "line",
+      data: {
+        labels: data.daily.map((day) => formatForecastDate(day.date)),
+        datasets: [
+          {
+            label: "Daily high (°C)",
+            data: data.daily.map((day) => day.maximumTemperatureC),
+            borderColor: "#C45A24",
+            backgroundColor: "rgba(196, 90, 36, 0.10)",
+            tension: 0.3,
+            pointRadius: 3,
+            fill: false
+          },
+          {
+            label: "Daily low (°C)",
+            data: data.daily.map((day) => day.minimumTemperatureC),
+            borderColor: "#1E9DD1",
+            backgroundColor: "rgba(30, 157, 209, 0.10)",
+            tension: 0.3,
+            pointRadius: 3,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top"
+          },
+          tooltip: {
+            callbacks: {
+              afterBody: (items) => {
+                const day = data.daily[items[0].dataIndex];
+                return [
+                  day.condition,
+                  `Precipitation probability: ${formatValue(
+                    day.precipitationProbabilityPercent
+                  )}%`
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxRotation: 0
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: "Outdoor temperature (°C)"
+            },
+            ticks: {
+              callback: (value) => `${value} °C`
+            }
+          }
+        }
+      }
+    });
+
+    if (statusElement) {
+      statusElement.textContent = "Updated";
+    }
+  } catch (error) {
+    console.error("Could not load weather forecast:", error);
+
+    if (statusElement) {
+      statusElement.textContent = "Unavailable";
+    }
+
+    const conditionElement = document.getElementById(
+      "weatherCurrentCondition"
+    );
+    if (conditionElement) {
+      conditionElement.textContent = error.message;
+    }
+  }
+}
+
+const applyConditionsFiltersButton = document.getElementById(
+  "applyConditionsFilters"
+);
+
+if (applyConditionsFiltersButton) {
+  applyConditionsFiltersButton.addEventListener(
+    "click",
+    loadConditionsChart
+  );
+}
+
 const applyChartFiltersButton = document.getElementById(
   "applyChartFilters"
 );
 
 if (applyChartFiltersButton) {
-  applyChartFiltersButton.addEventListener("click", loadSiteConsumptionChart);
+  applyChartFiltersButton.addEventListener(
+    "click",
+    loadSiteConsumptionChart
+  );
 }
 
 if (sensorTableBody) {
   loadSensorsFromBackend();
 }
 
+if (document.getElementById("conditionsChart")) {
+  loadConditionsChart();
+}
+
 if (document.getElementById("energyChart")) {
   loadSiteConsumptionChart();
   loadHistoricalDatasetTimestamp();
+}
+
+if (document.getElementById("weatherForecastChart")) {
+  loadWeatherForecastChart();
 }

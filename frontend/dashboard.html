@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GBTAC dashboard</title>
-    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=2.2" />
   </head>
   <body>
     <header class="topbar">
@@ -46,9 +46,7 @@
           <p class="summary-note positive">8% below yesterday</p>
         </article>
         <article class="summary-card summary-price">
-          <div class="summary-card-top">
-            <span>Electricity price (sample)</span>
-          </div>
+          <div class="summary-card-top"><span>Electricity price (sample)</span></div>
           <p class="summary-value">0.14<span> /kWh</span></p>
           <p class="summary-note">Current sample rate</p>
         </article>
@@ -73,14 +71,44 @@
         <article class="dashboard-panel chart-panel">
           <div class="panel-heading">
             <div>
-              <h2>Indoor conditions</h2>
-              <p>UI sample only — not connected to imported readings</p>
+              <h2>Indoor Temperature Conditions</h2>
+              <p>Average of 14 indoor ambient and 17 in-wall temperature sensors, with CO₂</p>
             </div>
+          </div>
+          <div
+            class="chart-filter-bar"
+            aria-label="Combined indoor and wall temperature chart filters"
+          >
+            <label>
+              Start date
+              <input type="date" id="conditionsStartDate" />
+            </label>
+            <label>
+              End date
+              <input type="date" id="conditionsEndDate" />
+            </label>
+            <label>
+              Interval
+              <select id="conditionsInterval">
+                <option value="raw">Raw</option>
+                <option value="15min">15 minutes</option>
+                <option value="hour" selected>Hourly average</option>
+                <option value="day">Daily average</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              class="primary-button"
+              id="applyConditionsFilters"
+            >
+              Apply
+            </button>
+            <span id="conditionsFilterStatus" role="status"></span>
           </div>
           <div class="chart-container">
             <canvas
               id="conditionsChart"
-              aria-label="Temperature and humidity line chart"
+              aria-label="Average indoor ambient and in-wall temperature with CO₂ line chart"
             ></canvas>
           </div>
         </article>
@@ -91,10 +119,7 @@
               <p>Historical building power consumption in kilowatts</p>
             </div>
           </div>
-          <div
-            class="chart-filter-bar"
-            aria-label="Site consumption chart filters"
-          >
+          <div class="chart-filter-bar" aria-label="Site consumption chart filters">
             <label>
               Start date
               <input type="date" id="chartStartDate" />
@@ -130,37 +155,57 @@
         <article class="dashboard-panel weather-panel">
           <div class="panel-heading">
             <div>
-              <h2>Weather and API preview</h2>
-              <p>Sample seven-day outdoor forecast</p>
+              <h2>Calgary Weather Forecast</h2>
+              <p>Current conditions and seven-day outdoor forecast</p>
             </div>
+            <span class="api-status" id="weatherApiStatus" role="status">
+              Loading
+            </span>
           </div>
           <div class="weather-current">
-            <div class="weather-symbol" aria-hidden="true">&#9725;</div>
+            <div
+              class="weather-symbol"
+              id="weatherSymbol"
+              aria-hidden="true"
+            >
+              &#9725;
+            </div>
             <div>
-              <p class="weather-temp">24&deg;C</p>
-              <p>Partly cloudy</p>
+              <p class="weather-temp" id="weatherCurrentTemperature">
+                &mdash;
+              </p>
+              <p id="weatherCurrentCondition">Loading forecast&hellip;</p>
             </div>
             <dl class="weather-details">
               <div>
                 <dt>Humidity</dt>
-                <dd>42%</dd>
+                <dd id="weatherCurrentHumidity">&mdash;</dd>
               </div>
               <div>
                 <dt>Forecast high</dt>
-                <dd>29&deg;C</dd>
+                <dd id="weatherTodayHigh">&mdash;</dd>
               </div>
               <div>
                 <dt>Forecast low</dt>
-                <dd>18&deg;C</dd>
+                <dd id="weatherTodayLow">&mdash;</dd>
               </div>
             </dl>
           </div>
           <div class="weather-chart-container">
             <canvas
               id="weatherForecastChart"
-              aria-label="Seven-day temperature forecast line chart"
+              aria-label="Seven-day high and low temperature forecast line chart"
             ></canvas>
           </div>
+          <p class="api-note" id="weatherSourceNote">
+            Weather data provided by
+            <a
+              href="https://open-meteo.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Open-Meteo</a
+            >.<span id="weatherRetrievedAt"></span>
+          </p>
         </article>
 
         <article class="dashboard-panel recommendation-preview">
@@ -190,9 +235,9 @@
 
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=2"></script>
-    <script src="api.js?v=2"></script>
-    <script src="script.js?v=2"></script>
-    <script src="backend-data.js?v=phase2-7"></script>
+    <script src="config.js?v=2.3"></script>
+    <script src="api.js?v=2.2"></script>
+    <script src="script.js?v=2.2"></script>
+    <script src="backend-data.js?v=2.3"></script>
   </body>
 </html>

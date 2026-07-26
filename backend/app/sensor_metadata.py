@@ -7,6 +7,7 @@ are then overlaid using SENSOR_METADATA.
 
 from typing import Any
 
+from .dashboard_sensors import INDOOR_WALL_TEMPERATURE_SENSOR_CODES
 from .sensor_naming import infer_inventory_identity
 
 
@@ -135,6 +136,22 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
         "data_type": "percentage",
     },
 }
+
+
+# The client confirmed that TL55 through TL71 are temperature sensors installed
+# inside the building walls. Exact overrides are required because several rows
+# in the source inventory use a measurement-property value that is otherwise
+# ambiguous.
+for wall_sensor_code in INDOOR_WALL_TEMPERATURE_SENSOR_CODES:
+    SENSOR_METADATA.setdefault(wall_sensor_code, {}).update(
+        {
+            "raw_unit": "°C",
+            "display_unit": "°C",
+            "scale_factor": 1.0,
+            "data_type": "wall_temperature",
+            "category": "Temperature",
+        }
+    )
 
 
 def get_sensor_metadata(

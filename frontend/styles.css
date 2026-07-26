@@ -2111,8 +2111,19 @@ body.auth-page .weather-symbol,
   background: #ffffff;
 }
 
-#chartFilterStatus {
+#chartFilterStatus,
+#conditionsFilterStatus {
   min-height: 1.2rem;
   font-size: 0.85rem;
   color: #50636f;
+}
+
+#weatherApiStatus {
+  min-width: 76px;
+  text-align: center;
+}
+
+.api-note a {
+  color: var(--primary-dark);
+  font-weight: 700;
 }

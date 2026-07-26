@@ -78,3 +78,68 @@ def serialize_readings(
         )
 
     return points[-limit:]
+
+
+def aggregate_temperature_sensor_group(
+    sensors: list[SensorPoint],
+    readings: list[SensorReading],
+    interval: ReadingInterval,
+    limit: int,
+) -> list[dict]:
+    """Average a sensor group with equal weight for every available sensor.
+
+    Each sensor is averaged inside the requested time bucket first. The bucket
+    values are then averaged across sensors. This prevents a sensor that reports
+    more frequently from having more influence on the building-wide result.
+    Missing readings are ignored rather than treated as zero.
+    """
+    sensors_by_id = {
+        sensor.sensor_point_id: sensor
+        for sensor in sensors
+    }
+    sensor_bucket_values: dict[tuple[int, datetime], list[float]] = (
+        defaultdict(list)
+    )
+
+    for reading in readings:
+        if reading.value is None:
+            continue
+
+        sensor = sensors_by_id.get(reading.sensor_point_id)
+        if sensor is None:
+            continue
+
+        scaled_value = scale_value(sensor, reading.value)
+        if scaled_value is None:
+            continue
+
+        bucket = bucket_timestamp(reading.reading_time, interval)
+        sensor_bucket_values[(sensor.sensor_point_id, bucket)].append(
+            scaled_value
+        )
+
+    values_by_timestamp: dict[datetime, list[float]] = defaultdict(list)
+
+    for (_, timestamp), values in sensor_bucket_values.items():
+        if values:
+            values_by_timestamp[timestamp].append(
+                sum(values) / len(values)
+            )
+
+    points = []
+
+    for timestamp in sorted(values_by_timestamp):
+        sensor_values = values_by_timestamp[timestamp]
+        points.append(
+            {
+                "timestamp": timestamp,
+                "averageTemperatureC": (
+                    sum(sensor_values) / len(sensor_values)
+                ),
+                "minimumTemperatureC": min(sensor_values),
+                "maximumTemperatureC": max(sensor_values),
+                "contributingSensorCount": len(sensor_values),
+            }
+        )
+
+    return points[-limit:]
