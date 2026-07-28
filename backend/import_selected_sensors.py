@@ -4,6 +4,7 @@ import pandas as pd
 
 from backend.app.cache_service import cache
 from backend.app.database import SessionLocal
+from backend.app.dashboard_sensors import EXCLUDED_SENSOR_CODES
 from backend.app.models import SensorPoint
 from backend.app.sensor_metadata import get_sensor_metadata
 
@@ -56,6 +57,7 @@ def main():
     try:
         imported_count = 0
         updated_count = 0
+        excluded_count = 0
 
         for _, row in df.iterrows():
             sensor_code = clean_text(row["Sensor Code"])
@@ -89,10 +91,13 @@ def main():
                 "sign_convention": metadata["sign_convention"],
                 "data_type": metadata["data_type"],
                 "location": metadata["location"],
-                # The user requested the complete Sheet1 inventory, so every
-                # row is exposed by the Sensor Data Service.
-                "is_selected": True,
+                # Keep the full Sheet1 inventory in PostgreSQL, but do not
+                # expose points the client asked us to leave out.
+                "is_selected": sensor_code not in EXCLUDED_SENSOR_CODES,
             }
+
+            if sensor_code in EXCLUDED_SENSOR_CODES:
+                excluded_count += 1
 
             existing_sensor = (
                 db.query(SensorPoint)
@@ -114,8 +119,10 @@ def main():
         print(f"Inventory rows processed: {total_count}")
         print(f"New sensors imported: {imported_count}")
         print(f"Existing sensors updated: {updated_count}")
+        print(f"Client-excluded sensors hidden: {excluded_count}")
         print(
-            "All Sheet1 sensors are marked for API display and reading import."
+            "All other Sheet1 sensors are marked for API display and reading "
+            "import."
         )
         print(
             "Naming-derived units remain provisional unless a sensor has a "

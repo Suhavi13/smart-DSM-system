@@ -65,10 +65,12 @@
         </article>
         <article class="summary-card summary-pending">
           <div class="summary-card-top">
-            <span>Pending recommendations (sample)</span>
+            <span>Triggered recommendations</span>
           </div>
-          <p class="summary-value">4</p>
-          <p class="summary-note warning-text">2 need attention today</p>
+          <p class="summary-value" id="dashboardRecommendationCount">&mdash;</p>
+          <p class="summary-note warning-text" id="dashboardRecommendationNote">
+            Loading rule service&hellip;
+          </p>
         </article>
       </section>
 
@@ -216,25 +218,43 @@
           </p>
         </article>
 
-        <article class="dashboard-panel recommendation-preview">
+        <article
+          class="dashboard-panel recommendation-preview"
+          id="dashboardRecommendationPreview"
+        >
           <div class="panel-heading">
-            <h2>Recommendation</h2>
+            <h2>Latest recommendation</h2>
           </div>
 
-          <p>Peak demand reduction</p>
-          <p>
-            Reduce cooling load between 4:00 p.m. and 6:00 p.m. to avoid peak
-            electricity charges.
+          <p
+            class="recommendation-category"
+            id="dashboardRecommendationCategory"
+          >
+            Loading&hellip;
           </p>
+          <h3 id="dashboardRecommendationTitle">Checking rule evidence</h3>
+          <p id="dashboardRecommendationDescription">
+            The backend is evaluating sensor and external values.
+          </p>
+          <p
+            class="recommendation-reason"
+            id="dashboardRecommendationReason"
+          ></p>
 
           <div class="recommendation-preview-details">
-            <div><span>Estimated savings</span><strong>$85</strong></div>
-            <div><span>Status</span><strong>Pending review</strong></div>
+            <div>
+              <span>Rule</span>
+              <strong id="dashboardRecommendationRule">&mdash;</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong id="dashboardRecommendationStatus">Loading</strong>
+            </div>
           </div>
 
           <div class="recommendation-preview-footer">
             <a class="recommendation-link-button" href="recommendations.html"
-              >View recommendations</a
+              >View evidence and decide</a
             >
           </div>
         </article>
@@ -243,9 +263,9 @@
 
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=4"></script>
-    <script src="api.js?v=4"></script>
-    <script src="script.js?v=4"></script>
-    <script src="backend-data.js?v=4"></script>
+    <script src="config.js?v=5"></script>
+    <script src="api.js?v=5"></script>
+    <script src="script.js?v=5"></script>
+    <script src="backend-data.js?v=5"></script>
   </body>
 </html>

@@ -39,30 +39,6 @@ def add_temperature_sensor(
     return sensor
 
 
-def add_co2_sensor(db: Session) -> None:
-    sensor = SensorPoint(
-        sensor_code="20016_TL5",
-        trend_column="SaitSolarLab_20016_TL5",
-        display_name="CO2 Sensor",
-        category="Air Quality",
-        raw_unit="ppm",
-        display_unit="ppm",
-        scale_factor=1.0,
-        data_type="co2",
-        location="Inside building",
-        is_selected=True,
-    )
-    db.add(sensor)
-    db.flush()
-    db.add(
-        SensorReading(
-            sensor_point_id=sensor.sensor_point_id,
-            reading_time=datetime(2025, 1, 1, 10, 20),
-            value=650.0,
-        )
-    )
-
-
 def test_indoor_conditions_average_ambient_and_wall_sensors_equally(
     client: TestClient,
     db_session: Session,
@@ -90,7 +66,6 @@ def test_indoor_conditions_average_ambient_and_wall_sensors_equally(
         [(datetime(2025, 1, 1, 10, 25), 30.0)],
         "wall_temperature",
     )
-    add_co2_sensor(db_session)
     db_session.commit()
 
     response = client.get(
@@ -112,7 +87,7 @@ def test_indoor_conditions_average_ambient_and_wall_sensors_equally(
     assert point["minimumTemperatureC"] == 20.0
     assert point["maximumTemperatureC"] == 40.0
     assert point["contributingSensorCount"] == 3
-    assert point["co2Ppm"] == 650.0
+    assert "co2Ppm" not in point
 
 
 def test_indoor_conditions_ignores_missing_sensor_readings(

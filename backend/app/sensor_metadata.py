@@ -14,37 +14,38 @@ from .sensor_naming import infer_inventory_identity
 SENSOR_METADATA: dict[str, dict[str, Any]] = {
     "30000_TL342": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "sign_convention": (
-            "Preserve the source sign. Negative values require client "
-            "confirmation and may represent flow direction or net export."
+            "The source reports building consumption as negative W. Preserve "
+            "the source sign in raw sensor views; use the cumulative "
+            "consumption counter for positive interval energy usage."
         ),
         "data_type": "power",
     },
     "30000_TL335": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "sign_convention": "Negative values may represent net export.",
         "data_type": "power",
     },
     "30000_TL3": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL252": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL253": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL388": {
@@ -55,57 +56,105 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
     },
     "30000_TL208": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL209": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL210": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL211": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL212": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL213": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "power",
     },
     "30000_TL343": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "phase_power",
     },
     "30000_TL344": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "phase_power",
     },
     "30000_TL345": {
         "raw_unit": "W",
-        "display_unit": "kW",
-        "scale_factor": 0.001,
+        "display_unit": "W",
+        "scale_factor": 1.0,
         "data_type": "phase_power",
+    },
+    "30000_TL336": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "cumulative_generation_energy",
+        "sign_convention": (
+            "Cumulative generation counter. Subtract the previous reading "
+            "from the current reading to calculate interval generation."
+        ),
+    },
+    "30000_TL337": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "cumulative_consumption_energy",
+        "sign_convention": (
+            "The cumulative consumption counter becomes more negative as "
+            "energy is used. Calculate positive interval consumption as "
+            "previous reading minus current reading."
+        ),
+    },
+    "30000_TL338": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "cumulative_net_energy",
+    },
+    "30000_TL339": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "interval_net_energy",
+    },
+    "30000_TL340": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "interval_generation_energy",
+    },
+    "30000_TL341": {
+        "raw_unit": "Wh",
+        "display_unit": "Wh",
+        "scale_factor": 1.0,
+        "data_type": "interval_consumption_energy",
+        "sign_convention": (
+            "The source reports interval consumption as negative Wh."
+        ),
     },
     "20000_TL92": {
         "raw_unit": "°C",
@@ -120,14 +169,6 @@ SENSOR_METADATA: dict[str, dict[str, Any]] = {
         "display_unit": "°C",
         "scale_factor": 1.0,
         "data_type": "temperature",
-    },
-    "20016_TL5": {
-        "raw_unit": "ppm",
-        "display_unit": "ppm",
-        "scale_factor": 1.0,
-        "data_type": "co2",
-        "category": "Air Quality",
-        "location": "Inside building",
     },
     "30000_TL4": {
         "raw_unit": "%",

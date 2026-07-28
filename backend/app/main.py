@@ -16,9 +16,11 @@ from .dashboard_sensors import (
 )
 from .database import get_db
 from .models import SensorPoint, SensorReading
+from .recommendation_service import generate_recommendations
 from .schemas import (
     DashboardOverviewResponse,
     IndoorConditionsResponse,
+    RecommendationListResponse,
     SensorReadingsResponse,
     SensorSummaryResponse,
     WeatherForecastResponse,
@@ -36,32 +38,43 @@ from .weather_service import (
 from .routers.decisions import router as decisions_router
 
 
-
 ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
     title="GBTAC Sensor Data Service",
-    version="0.4.0",
+    version="0.5.0",
     description=(
-        "Read-only API for the full historical GBTAC sensor inventory, "
-        "Redis-cached dashboard aggregation, and normalized external "
-        "weather data."
+        "API for the historical GBTAC sensor inventory, Redis-cached "
+        "dashboard aggregation, normalized external weather data, and "
+        "transparent rule-based recommendations."
     ),
 )
 
 app.include_router(decisions_router)
 
+DEFAULT_CORS_ORIGINS = [
+    "http://127.0.0.1:8081",
+    "http://localhost:8081",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
+CONFIGURED_CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:8081",
-        "http://localhost:8081",
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-    ],
+    allow_origins=CONFIGURED_CORS_ORIGINS or DEFAULT_CORS_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Decision-Key",
+        "Idempotency-Key",
+    ],
     expose_headers=["X-Cache"],
 )
 
@@ -74,7 +87,6 @@ DASHBOARD_CHART_CACHE_SECONDS = max(
 SITE_CONSUMPTION_SENSOR_CODE = os.getenv(
     "SITE_CONSUMPTION_SENSOR_CODE", "30000_TL342"
 ).strip()
-
 
 
 def serialize_sensor(
@@ -151,9 +163,14 @@ def health_check():
     return {
         "status": "ok",
         "service": "GBTAC Sensor Data and Integration Service",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "datasetType": "historical",
         "externalApi": "Open-Meteo",
+        "recommendationService": {
+            "enabled": True,
+            "ruleCount": 3,
+            "explainableEvidence": True,
+        },
         "cache": {
             "enabled": cache.enabled,
             "provider": "Redis",
@@ -166,6 +183,16 @@ def health_check():
             ),
         },
     }
+
+
+@app.get(
+    "/api/v1/recommendations",
+    response_model=RecommendationListResponse,
+    tags=["Recommendations"],
+)
+def get_recommendations(db: Session = Depends(get_db)):
+    """Evaluate Phase 5 rules and return explainable recommendations."""
+    return generate_recommendations(db)
 
 
 @app.get(

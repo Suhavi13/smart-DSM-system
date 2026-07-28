@@ -47,4 +47,16 @@ INDOOR_TEMPERATURE_SENSOR_CODES = (
     + INDOOR_WALL_TEMPERATURE_SENSOR_CODES
 )
 
-INDOOR_CO2_SENSOR_CODE = "20016_TL5"
+# The client could not confirm that this point is a valid CO2 measurement and
+# asked that it be left out of the current project scope. The inventory row is
+# preserved for traceability, but import_selected_sensors.py marks it inactive
+# so it is not displayed or used by dashboard calculations.
+EXCLUDED_SENSOR_CODES = (
+    "20016_TL5",
+)
+
+
+# This is the cumulative building-consumption counter provided in Wh. The
+# source counter becomes more negative as consumption increases, so dashboard
+# usage is calculated as previous reading minus current reading.
+ENERGY_CONSUMPTION_SENSOR_CODE = "30000_TL337"

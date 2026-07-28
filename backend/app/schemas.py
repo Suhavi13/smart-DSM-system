@@ -220,3 +220,43 @@ class DecisionResponse(BaseModel):
     created_at: datetime = Field(
         alias="createdAt"
     )
+
+
+class RecommendationEvidenceResponse(BaseModel):
+    sourceType: Literal["sensor", "external", "derived"]
+    label: str
+    value: Any = None
+    unit: Optional[str] = None
+    sensorCode: Optional[str] = None
+    displayName: Optional[str] = None
+    rawValue: Optional[float] = None
+    rawUnit: Optional[str] = None
+    timestamp: Optional[datetime | str] = None
+    source: Optional[str] = None
+    note: Optional[str] = None
+
+
+class RecommendationResponse(BaseModel):
+    recommendationId: str
+    recommendationVersion: int
+    ruleId: str
+    category: str
+    priority: Literal["Low", "Medium", "High"]
+    title: str
+    description: str
+    recommendedAction: str
+    reason: str
+    status: Literal["pending"] = "pending"
+    evidence: list[RecommendationEvidenceResponse]
+    limitations: list[str] = Field(default_factory=list)
+
+
+class RecommendationListResponse(BaseModel):
+    generatedAt: datetime
+    datasetType: str = "historical"
+    datasetLatestTimestamp: Optional[datetime] = None
+    externalDataStatus: Literal["available", "stale", "unavailable"]
+    evaluatedRuleCount: int
+    recommendationCount: int
+    warnings: list[str] = Field(default_factory=list)
+    recommendations: list[RecommendationResponse]

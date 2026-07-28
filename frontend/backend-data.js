@@ -665,3 +665,85 @@ if (document.getElementById("energyChart")) {
 if (document.getElementById("weatherForecastChart")) {
   loadWeatherForecastChart();
 }
+
+async function loadRecommendationPreview() {
+  const preview = document.getElementById("dashboardRecommendationPreview");
+  const countElement = document.getElementById("dashboardRecommendationCount");
+  const noteElement = document.getElementById("dashboardRecommendationNote");
+
+  if (!preview && !countElement) {
+    return;
+  }
+
+  try {
+    const payload = await apiGet("/recommendations");
+    const recommendations = payload.recommendations || [];
+
+    if (countElement) {
+      countElement.textContent = String(payload.recommendationCount || 0);
+    }
+
+    if (noteElement) {
+      noteElement.textContent = recommendations.length
+        ? `${payload.evaluatedRuleCount} rules evaluated`
+        : "No rule needs attention";
+      noteElement.classList.toggle("warning-text", recommendations.length > 0);
+      noteElement.classList.toggle("positive", recommendations.length === 0);
+    }
+
+    if (!preview) {
+      return;
+    }
+
+    const category = document.getElementById("dashboardRecommendationCategory");
+    const title = document.getElementById("dashboardRecommendationTitle");
+    const description = document.getElementById(
+      "dashboardRecommendationDescription"
+    );
+    const reason = document.getElementById("dashboardRecommendationReason");
+    const rule = document.getElementById("dashboardRecommendationRule");
+    const status = document.getElementById("dashboardRecommendationStatus");
+
+    if (!recommendations.length) {
+      if (category) category.textContent = "All clear";
+      if (title) title.textContent = "No recommendation is currently triggered";
+      if (description) {
+        description.textContent =
+          "The available sensor and weather evidence did not cross any configured rule threshold.";
+      }
+      if (reason) reason.textContent = "";
+      if (rule) rule.textContent = `${payload.evaluatedRuleCount} evaluated`;
+      if (status) status.textContent = "No action needed";
+      return;
+    }
+
+    const recommendation = recommendations[0];
+    if (category) category.textContent = recommendation.category;
+    if (title) title.textContent = recommendation.title;
+    if (description) description.textContent = recommendation.description;
+    if (reason) reason.textContent = recommendation.reason;
+    if (rule) rule.textContent = recommendation.ruleId;
+    if (status) status.textContent = "Pending review";
+  } catch (error) {
+    console.error("Could not load recommendation preview:", error);
+
+    if (countElement) countElement.textContent = "—";
+    if (noteElement) {
+      noteElement.textContent = "Recommendation service unavailable";
+      noteElement.classList.add("warning-text");
+    }
+
+    const title = document.getElementById("dashboardRecommendationTitle");
+    const description = document.getElementById(
+      "dashboardRecommendationDescription"
+    );
+    const status = document.getElementById("dashboardRecommendationStatus");
+    if (title) title.textContent = "Could not load recommendations";
+    if (description) description.textContent = error.message;
+    if (status) status.textContent = "Unavailable";
+  }
+}
+
+if (document.getElementById("dashboardRecommendationPreview")) {
+  loadRecommendationPreview();
+}

@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.app import main
+from backend.app.dashboard_sensors import EXCLUDED_SENSOR_CODES
 from backend.app.sensor_metadata import get_sensor_metadata
 import fakeredis
 
@@ -33,18 +34,14 @@ def sample_provider_payload():
     }
 
 
-def test_conditions_sensor_metadata_supports_chart_pair():
+def test_conditions_sensor_metadata_uses_temperature_only():
     temperature = get_sensor_metadata(
         "20016_TL2", "Temperature", 6
-    )
-    air_quality = get_sensor_metadata(
-        "20016_TL5", "CO2_Sensor", 44
     )
 
     assert temperature["display_unit"] == "°C"
     assert temperature["data_type"] == "ambient_temperature"
-    assert air_quality["display_unit"] == "ppm"
-    assert air_quality["data_type"] == "co2"
+    assert "20016_TL5" in EXCLUDED_SENSOR_CODES
 
 
 def test_weather_payload_is_normalized():

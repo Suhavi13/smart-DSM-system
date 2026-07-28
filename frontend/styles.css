@@ -2127,3 +2127,127 @@ body.auth-page .weather-symbol,
   color: var(--primary-dark);
   font-weight: 700;
 }
+
+/* Phase 5 explainable recommendation service */
+.recommendation-summary {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.recommendation-action-panel {
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--sky-blue);
+  border-radius: 8px;
+  background: #f3f9fc;
+}
+
+.recommendation-action-panel p {
+  margin: 0.35rem 0 0;
+  color: #111827;
+  line-height: 1.55;
+}
+
+.recommendation-evidence {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.recommendation-evidence summary {
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 1rem 1rem;
+  list-style: none;
+}
+
+.evidence-item {
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-strong);
+}
+
+.evidence-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.evidence-source-type {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--midnight-plum);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidence-value {
+  margin: 0.45rem 0;
+  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.evidence-metadata,
+.evidence-raw,
+.evidence-note {
+  margin: 0.25rem 0 0;
+  color: #4b5563;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.evidence-note {
+  font-style: italic;
+}
+
+.recommendation-limitations {
+  padding: 0.85rem 1rem;
+  border-radius: 9px;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.recommendation-limitations ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.recommendation-limitations li + li {
+  margin-top: 0.3rem;
+}
+
+.rule-id {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.decision-status {
+  min-height: 1.25rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.recommendation-empty-state {
+  padding: 2rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.recommendation-empty-state h2 {
+  margin-top: 0;
+}
