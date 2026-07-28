@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -12,173 +12,191 @@ def add_sensor(
     db: Session,
     *,
     code: str,
-    name: str,
-    readings: list[tuple[datetime, float]],
-) -> None:
+    display_name: str,
+    unit: str,
+    data_type: str,
+) -> SensorPoint:
     sensor = SensorPoint(
         sensor_code=code,
         trend_column=f"SaitSolarLab_{code}",
-        display_name=name,
-        category="Energy",
+        display_name=display_name,
+        category="Energy" if unit == "W" else "Temperature",
         priority="P1",
-        raw_unit="W",
-        display_unit="kW",
-        scale_factor=0.001,
-        data_type="power",
+        raw_unit=unit,
+        display_unit=unit,
+        scale_factor=1.0,
+        data_type=data_type,
         location="GBTAC building",
         is_selected=True,
     )
     db.add(sensor)
     db.flush()
-
-    db.add_all(
-        SensorReading(
-            sensor_point_id=sensor.sensor_point_id,
-            reading_time=timestamp,
-            value=value,
-        )
-        for timestamp, value in readings
-    )
+    return sensor
 
 
-def warm_weather_payload() -> dict:
-    return {
-        "location": "Calgary, Alberta",
-        "source": "Open-Meteo",
-        "providerRetrievedAt": "2026-07-28T09:00",
-        "servedAt": "2026-07-28T09:00:01+00:00",
-        "isStale": False,
-        "daily": [
-            {
-                "date": "2026-07-28",
-                "maximumTemperatureC": 27.0,
-                "minimumTemperatureC": 14.0,
-                "condition": "Partly cloudy",
-            }
-        ],
-    }
-
-
-def seed_triggering_evidence(db: Session) -> None:
-    latest = datetime(2025, 12, 31, 23, 59)
-
-    add_sensor(
-        db,
-        code="30000_TL209",
-        name="GBT Lighting consumption",
-        readings=[(latest, 300.0)],
-    )
-    add_sensor(
-        db,
-        code="30000_TL208",
-        name="GBT Space heating/cooling consumption",
-        readings=[(latest, 2000.0)],
-    )
-    add_sensor(
+def seed_recommendation_inputs(db: Session) -> None:
+    power_sensor = add_sensor(
         db,
         code="30000_TL342",
-        name="GBT Site Consumption",
-        readings=[(latest, -8000.0)],
+        display_name="GBT Site Consumption",
+        unit="W",
+        data_type="power",
     )
 
-    dhw_readings = [
-        (latest - timedelta(minutes=index + 1), 50.0)
-        for index in range(30)
+    power_values = [
+        (datetime(2025, 12, 31, 0, 0), -9_000.0),
+        (datetime(2025, 12, 31, 1, 0), -10_000.0),
+        (datetime(2025, 12, 31, 2, 0), -9_000.0),
+        (datetime(2025, 12, 31, 3, 0), -10_000.0),
+        (datetime(2025, 12, 31, 4, 0), -9_000.0),
+        (datetime(2025, 12, 31, 5, 0), -10_000.0),
+        (datetime(2025, 12, 31, 12, 0), -5_000.0),
+        (datetime(2025, 12, 31, 14, 0), -22_000.0),
+        (datetime(2025, 12, 31, 23, 0), -7_000.0),
     ]
-    dhw_readings.append((latest, 200.0))
-    add_sensor(
-        db,
-        code="30000_TL210",
-        name="GBT Domestic Hot Water consumption",
-        readings=dhw_readings,
+
+    db.add_all(
+        [
+            SensorReading(
+                sensor_point_id=power_sensor.sensor_point_id,
+                reading_time=timestamp,
+                value=value,
+            )
+            for timestamp, value in power_values
+        ]
     )
+
+    for code, value in [
+        ("20003_TL2", 24.0),
+        ("20009_TL2", 25.0),
+    ]:
+        sensor = add_sensor(
+            db,
+            code=code,
+            display_name=f"Ambient temperature {code}",
+            unit="°C",
+            data_type="temperature",
+        )
+        db.add(
+            SensorReading(
+                sensor_point_id=sensor.sensor_point_id,
+                reading_time=datetime(2025, 12, 31, 23, 0),
+                value=value,
+            )
+        )
+
     db.commit()
 
 
-def test_recommendation_endpoint_returns_three_explainable_rules(
+def weather_payload() -> dict:
+    return {
+        "location": "Calgary, Alberta",
+        "source": "Open-Meteo",
+        "retrievedAt": "2026-07-28T04:00:00-06:00",
+        "servedAt": "2026-07-28T10:00:00+00:00",
+        "current": {
+            "temperatureC": 15.0,
+            "humidityPercent": 55.0,
+            "condition": "Clear sky",
+        },
+        "daily": [],
+    }
+
+
+def test_api_returns_three_explainable_triggered_recommendations(
     client: TestClient,
     db_session: Session,
     monkeypatch,
 ):
-    seed_triggering_evidence(db_session)
+    seed_recommendation_inputs(db_session)
     monkeypatch.setattr(
         recommendation_service,
         "get_weather_forecast",
-        warm_weather_payload,
+        weather_payload,
     )
 
     response = client.get("/api/v1/recommendations")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["evaluatedRuleCount"] == 3
+    assert payload["rulesEvaluated"] == 3
     assert payload["recommendationCount"] == 3
-    assert payload["externalDataStatus"] == "available"
 
-    recommendations = {
-        item["recommendationId"]: item
-        for item in payload["recommendations"]
-    }
-    assert set(recommendations) == {
-        "after-hours-lighting",
-        "dhw-above-baseline",
-        "weather-aware-hvac-plan",
-    }
-
-    lighting = recommendations["after-hours-lighting"]
-    assert lighting["ruleId"] == "R1_AFTER_HOURS_LIGHTING"
-    assert any(
-        item.get("sensorCode") == "30000_TL209"
-        for item in lighting["evidence"]
-    )
-
-    dhw = recommendations["dhw-above-baseline"]
-    ratio = next(
-        item
-        for item in dhw["evidence"]
-        if item["label"] == "Latest-to-baseline ratio"
-    )
-    assert ratio["value"] == 4.0
-
-    hvac = recommendations["weather-aware-hvac-plan"]
-    assert any(
-        item["sourceType"] == "external"
-        and item["value"] == 27.0
-        for item in hvac["evidence"]
-    )
-    assert any(
-        "historical" in limitation.lower()
-        for limitation in hvac["limitations"]
-    )
-
-
-def test_weather_failure_skips_only_weather_rule(
-    client: TestClient,
-    db_session: Session,
-    monkeypatch,
-):
-    seed_triggering_evidence(db_session)
-
-    def fail_weather():
-        raise WeatherProviderError("Provider unavailable")
-
-    monkeypatch.setattr(
-        recommendation_service,
-        "get_weather_forecast",
-        fail_weather,
-    )
-
-    response = client.get("/api/v1/recommendations")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["recommendationCount"] == 2
-    assert payload["externalDataStatus"] == "unavailable"
-    assert payload["warnings"]
-    assert {
+    recommendation_ids = {
         item["recommendationId"]
         for item in payload["recommendations"]
-    } == {
-        "after-hours-lighting",
-        "dhw-above-baseline",
     }
+    assert recommendation_ids == {
+        "reduce-overnight-baseload",
+        "investigate-demand-spike",
+        "evaluate-economizer-cooling",
+    }
+
+    for recommendation in payload["recommendations"]:
+        assert recommendation["reason"]
+        assert recommendation["rule"]["condition"]
+        assert recommendation["evidence"]
+        assert all(
+            evidence["sourceName"]
+            and evidence["comparison"]
+            and evidence["details"]
+            for evidence in recommendation["evidence"]
+        )
+
+    economizer = next(
+        item
+        for item in payload["recommendations"]
+        if item["recommendationId"] == "evaluate-economizer-cooling"
+    )
+    evidence_types = {
+        item["evidenceType"] for item in economizer["evidence"]
+    }
+    assert evidence_types == {"sensor", "external"}
+
+
+def test_weather_failure_skips_only_external_rule(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+):
+    seed_recommendation_inputs(db_session)
+
+    def unavailable_weather():
+        raise WeatherProviderError("provider unavailable")
+
+    monkeypatch.setattr(
+        recommendation_service,
+        "get_weather_forecast",
+        unavailable_weather,
+    )
+
+    response = client.get("/api/v1/recommendations")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rulesEvaluated"] == 3
+    assert payload["recommendationCount"] == 2
+    assert any(
+        item["ruleId"] == "weather-economizer"
+        for item in payload["skippedRules"]
+    )
+
+
+def test_empty_database_returns_rule_evaluations_without_fake_results(
+    client: TestClient,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        recommendation_service,
+        "get_weather_forecast",
+        weather_payload,
+    )
+
+    response = client.get("/api/v1/recommendations")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rulesEvaluated"] == 3
+    assert payload["recommendationCount"] == 0
+    assert len(payload["evaluations"]) == 3
+    assert all(not item["triggered"] for item in payload["evaluations"])

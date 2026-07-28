@@ -1,6 +1,3 @@
-const SITE_CONSUMPTION_SENSOR_CODE =
-  window.APP_CONFIG.SITE_CONSUMPTION_SENSOR_CODE || "30000_TL342";
-
 function formatValue(value) {
   const number = Number(value);
 
@@ -132,16 +129,14 @@ function buildIndoorConditionsPath() {
 
 async function loadConditionsChart() {
   const chartCanvas = document.getElementById("conditionsChart");
-  const statusElement = document.getElementById(
-    "conditionsFilterStatus"
-  );
+  const statusElement = document.getElementById("conditionsFilterStatus");
 
   if (!chartCanvas || typeof Chart === "undefined") {
     return;
   }
 
   if (statusElement) {
-    statusElement.textContent = "Calculating 31-sensor average…";
+    statusElement.textContent = "Loading historical readings…";
   }
 
   try {
@@ -153,42 +148,6 @@ async function loadConditionsChart() {
     }
 
     const temperatureUnit = data.temperatureUnit || "°C";
-    const co2Unit = data.co2Unit || "ppm";
-    const hasCo2Data = data.points.some(
-      (point) => Number.isFinite(Number(point.co2Ppm))
-    );
-    const datasets = [
-      {
-        label: `Average indoor + wall temperature (${temperatureUnit})`,
-        data: data.points.map((point) =>
-          Number(point.averageTemperatureC)
-        ),
-        borderColor: "#1E9DD1",
-        backgroundColor: "rgba(30, 157, 209, 0.12)",
-        yAxisID: "temperatureAxis",
-        tension: 0.3,
-        pointRadius: data.interval === "raw" ? 1 : 2,
-        spanGaps: true,
-        fill: true
-      }
-    ];
-
-    if (hasCo2Data) {
-      datasets.push({
-        label: `CO₂ (${co2Unit})`,
-        data: data.points.map((point) =>
-          Number.isFinite(Number(point.co2Ppm))
-            ? Number(point.co2Ppm)
-            : null
-        ),
-        borderColor: "#5A0E6F",
-        backgroundColor: "transparent",
-        yAxisID: "airQualityAxis",
-        tension: 0.3,
-        pointRadius: data.interval === "raw" ? 1 : 2,
-        spanGaps: true
-      });
-    }
 
     new Chart(chartCanvas, {
       type: "line",
@@ -196,7 +155,20 @@ async function loadConditionsChart() {
         labels: data.points.map((point) =>
           new Date(point.timestamp).toLocaleString()
         ),
-        datasets
+        datasets: [
+          {
+            label: `Average indoor temperature (${temperatureUnit})`,
+            data: data.points.map((point) =>
+              Number(point.averageTemperatureC)
+            ),
+            borderColor: "#1E9DD1",
+            backgroundColor: "rgba(30, 157, 209, 0.12)",
+            tension: 0.3,
+            pointRadius: data.interval === "raw" ? 1 : 2,
+            spanGaps: true,
+            fill: true
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -212,20 +184,11 @@ async function loadConditionsChart() {
           },
           tooltip: {
             callbacks: {
-              label: (context) => {
-                const unit =
-                  context.dataset.yAxisID === "airQualityAxis"
-                    ? co2Unit
-                    : temperatureUnit;
-                return `${context.dataset.label}: ${formatValue(
+              label: (context) =>
+                `${context.dataset.label}: ${formatValue(
                   context.parsed.y
-                )} ${unit}`;
-              },
+                )} ${temperatureUnit}`,
               afterLabel: (context) => {
-                if (context.dataset.yAxisID !== "temperatureAxis") {
-                  return "";
-                }
-
                 const point = data.points[context.dataIndex];
                 return [
                   `Sensor range: ${formatValue(
@@ -246,30 +209,13 @@ async function loadConditionsChart() {
               maxRotation: 0
             }
           },
-          temperatureAxis: {
-            type: "linear",
-            position: "left",
+          y: {
             title: {
               display: true,
               text: `Average temperature (${temperatureUnit})`
             },
             ticks: {
               callback: (value) => `${value} ${temperatureUnit}`
-            }
-          },
-          airQualityAxis: {
-            type: "linear",
-            position: "right",
-            display: hasCo2Data,
-            title: {
-              display: hasCo2Data,
-              text: `CO₂ (${co2Unit})`
-            },
-            ticks: {
-              callback: (value) => `${value} ${co2Unit}`
-            },
-            grid: {
-              drawOnChartArea: false
             }
           }
         }
@@ -296,14 +242,20 @@ async function loadConditionsChart() {
   }
 }
 
-function buildSiteConsumptionReadingsPath() {
+function buildEnergyConsumptionPath() {
   const startDate = document.getElementById("chartStartDate")?.value;
   const endDate = document.getElementById("chartEndDate")?.value;
   const interval =
-    document.getElementById("chartInterval")?.value || "hour";
+    document.getElementById("chartInterval")?.value || "day";
+  const limitsByInterval = {
+    raw: "200",
+    "15min": "192",
+    hour: "168",
+    day: "60"
+  };
   const parameters = new URLSearchParams({
     interval,
-    limit: "500"
+    limit: limitsByInterval[interval] || "60"
   });
 
   if (startDate) {
@@ -314,10 +266,69 @@ function buildSiteConsumptionReadingsPath() {
     parameters.set("end", `${endDate}T23:59:59`);
   }
 
-  return `/dashboard/site-consumption?${parameters.toString()}`;
+  return `/dashboard/energy-consumption?${parameters.toString()}`;
 }
 
-async function loadSiteConsumptionChart() {
+function selectedEnergyMetric() {
+  const selection = document.getElementById("energyMetric")?.value || "kWh";
+
+  if (selection === "Wh") {
+    return {
+      field: "energyWh",
+      label: "Energy used",
+      unit: "Wh",
+      chartType: "bar"
+    };
+  }
+
+  if (selection === "W") {
+    return {
+      field: "averageWatts",
+      label: "Average demand",
+      unit: "W",
+      chartType: "line"
+    };
+  }
+
+  return {
+    field: "energyKwh",
+    label: "Energy used",
+    unit: "kWh",
+    chartType: "bar"
+  };
+}
+
+function energyChartLabel(timestamp, interval) {
+  const date = new Date(timestamp);
+  return interval === "day"
+    ? date.toLocaleDateString()
+    : date.toLocaleString();
+}
+
+function updateEnergySummary(data) {
+  const valueElement = document.getElementById("summaryEnergyUsage");
+  const noteElement = document.getElementById("summaryEnergyNote");
+  const latestPoint = data.points[data.points.length - 1];
+
+  if (!valueElement || !noteElement) {
+    return;
+  }
+
+  if (!latestPoint) {
+    valueElement.textContent = "—";
+    noteElement.textContent = "No cumulative energy deltas available";
+    return;
+  }
+
+  const useWh = Math.abs(Number(latestPoint.energyKwh)) < 1;
+  valueElement.innerHTML = useWh
+    ? `${formatValue(latestPoint.energyWh)}<span> Wh</span>`
+    : `${formatValue(latestPoint.energyKwh)}<span> kWh</span>`;
+  noteElement.textContent =
+    `${data.interval} usage • ${formatValue(latestPoint.averageWatts)} W average`;
+}
+
+async function loadEnergyConsumptionChart() {
   const chartCanvas = document.getElementById("energyChart");
   const statusElement = document.getElementById("chartFilterStatus");
 
@@ -326,40 +337,47 @@ async function loadSiteConsumptionChart() {
   }
 
   if (statusElement) {
-    statusElement.textContent = "Loading historical readings…";
+    statusElement.textContent = "Calculating energy deltas…";
   }
 
   try {
-    const data = await apiGet(buildSiteConsumptionReadingsPath());
+    const data = await apiGet(buildEnergyConsumptionPath());
     const existingChart = Chart.getChart(chartCanvas);
+    const metric = selectedEnergyMetric();
 
     if (existingChart) {
       existingChart.destroy();
     }
 
-    const displayUnit = data.sensor.displayUnit || "Unconfirmed";
-
     new Chart(chartCanvas, {
-      type: "line",
+      type: metric.chartType,
       data: {
         labels: data.points.map((point) =>
-          new Date(point.timestamp).toLocaleString()
+          energyChartLabel(point.timestamp, data.interval)
         ),
         datasets: [
           {
-            label: `${data.sensor.displayName} (${displayUnit})`,
-            data: data.points.map((point) => Number(point.value)),
+            label: `${metric.label} (${metric.unit})`,
+            data: data.points.map((point) => Number(point[metric.field])),
             borderColor: "#1E9DD1",
-            backgroundColor: "rgba(30, 157, 209, 0.12)",
+            backgroundColor:
+              metric.chartType === "bar"
+                ? "rgba(30, 157, 209, 0.72)"
+                : "rgba(30, 157, 209, 0.12)",
             tension: 0.3,
-            pointRadius: data.interval === "raw" ? 1 : 2,
-            fill: true
+            pointRadius: metric.chartType === "line" ? 2 : 0,
+            fill: metric.chartType === "line",
+            borderWidth: 2
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
         plugins: {
           legend: {
             display: true,
@@ -367,19 +385,18 @@ async function loadSiteConsumptionChart() {
           },
           tooltip: {
             callbacks: {
-              label: (context) => {
+              label: (context) =>
+                `${metric.label}: ${formatValue(context.parsed.y)} ${metric.unit}`,
+              afterLabel: (context) => {
                 const point = data.points[context.dataIndex];
-                const range =
-                  point.minimumValue !== null &&
-                  point.maximumValue !== null
-                    ? `; range ${formatValue(point.minimumValue)}–${formatValue(
-                        point.maximumValue
-                      )} ${displayUnit}`
-                    : "";
-
-                return `${data.sensor.displayName}: ${formatValue(
-                  context.parsed.y
-                )} ${displayUnit}${range}`;
+                return [
+                  `Energy: ${formatValue(point.energyWh)} Wh (${formatValue(
+                    point.energyKwh
+                  )} kWh)`,
+                  `Average demand: ${formatValue(point.averageWatts)} W`,
+                  `Measured duration: ${formatValue(point.durationHours)} h`,
+                  `Reading changes combined: ${point.count}`
+                ];
               }
             }
           }
@@ -387,30 +404,38 @@ async function loadSiteConsumptionChart() {
         scales: {
           x: {
             ticks: {
-              maxTicksLimit: 6,
+              maxTicksLimit: 8,
               maxRotation: 0
             }
           },
           y: {
+            beginAtZero: true,
             title: {
               display: true,
-              text: `${data.sensor.displayName} (${displayUnit})`
+              text: `${metric.label} (${metric.unit})`
             },
             ticks: {
-              callback: (value) => `${value} ${displayUnit}`
+              callback: (value) => `${formatValue(value)} ${metric.unit}`
             }
           }
         }
       }
     });
 
+    updateEnergySummary(data);
+
     if (statusElement) {
-      statusElement.textContent = `${data.pointCount} ${data.interval} point${
-        data.pointCount === 1 ? "" : "s"
-      } shown`;
+      const skippedText = data.skippedCounterChanges
+        ? ` • ${data.skippedCounterChanges} counter reversal(s) skipped`
+        : "";
+      statusElement.textContent =
+        `${data.pointCount} ${data.interval} period${
+          data.pointCount === 1 ? "" : "s"
+        } • derived from ${data.sensor.sensorCode} cumulative ${data.sourceUnit}` +
+        skippedText;
     }
   } catch (error) {
-    console.error("Could not load site consumption chart:", error);
+    console.error("Could not load energy consumption chart:", error);
 
     if (statusElement) {
       statusElement.textContent = error.message;
@@ -627,6 +652,102 @@ async function loadWeatherForecastChart() {
   }
 }
 
+async function loadRecommendationPreview() {
+  const titleElement = document.getElementById(
+    "dashboardRecommendationTitle"
+  );
+
+  if (!titleElement) {
+    return;
+  }
+
+  const descriptionElement = document.getElementById(
+    "dashboardRecommendationDescription"
+  );
+  const priorityElement = document.getElementById(
+    "dashboardRecommendationPriority"
+  );
+  const evidenceElement = document.getElementById(
+    "dashboardRecommendationEvidence"
+  );
+  const countElement = document.getElementById(
+    "dashboardRecommendationCount"
+  );
+  const noteElement = document.getElementById(
+    "dashboardRecommendationNote"
+  );
+
+  try {
+    const data = await apiGet("/recommendations");
+    const firstRecommendation = data.recommendations?.[0];
+
+    if (countElement) {
+      countElement.textContent = String(data.recommendationCount);
+    }
+
+    if (noteElement) {
+      noteElement.textContent =
+        `${data.recommendationCount} of ${data.rulesEvaluated} rules triggered`;
+    }
+
+    if (!firstRecommendation) {
+      titleElement.textContent = "No active recommendation";
+      if (descriptionElement) {
+        descriptionElement.textContent =
+          "All configured rules are currently below their trigger thresholds.";
+      }
+      if (priorityElement) {
+        priorityElement.textContent = "None";
+      }
+      if (evidenceElement) {
+        evidenceElement.textContent = "3 rules evaluated";
+      }
+      return;
+    }
+
+    titleElement.textContent = firstRecommendation.title;
+
+    if (descriptionElement) {
+      descriptionElement.textContent = firstRecommendation.description;
+    }
+
+    if (priorityElement) {
+      priorityElement.textContent = firstRecommendation.priority;
+    }
+
+    if (evidenceElement) {
+      const evidenceLabels = (firstRecommendation.evidence || [])
+        .map((item) => item.label)
+        .slice(0, 2);
+      evidenceElement.textContent =
+        evidenceLabels.join(" + ") || "Rule evidence";
+    }
+  } catch (error) {
+    console.error("Could not load recommendation preview:", error);
+    titleElement.textContent = "Recommendation service unavailable";
+
+    if (descriptionElement) {
+      descriptionElement.textContent = error.message;
+    }
+
+    if (priorityElement) {
+      priorityElement.textContent = "—";
+    }
+
+    if (evidenceElement) {
+      evidenceElement.textContent = "API error";
+    }
+
+    if (countElement) {
+      countElement.textContent = "—";
+    }
+
+    if (noteElement) {
+      noteElement.textContent = "Could not evaluate rules";
+    }
+  }
+}
+
 const applyConditionsFiltersButton = document.getElementById(
   "applyConditionsFilters"
 );
@@ -645,7 +766,7 @@ const applyChartFiltersButton = document.getElementById(
 if (applyChartFiltersButton) {
   applyChartFiltersButton.addEventListener(
     "click",
-    loadSiteConsumptionChart
+    loadEnergyConsumptionChart
   );
 }
 
@@ -658,7 +779,7 @@ if (document.getElementById("conditionsChart")) {
 }
 
 if (document.getElementById("energyChart")) {
-  loadSiteConsumptionChart();
+  loadEnergyConsumptionChart();
   loadHistoricalDatasetTimestamp();
 }
 
@@ -666,84 +787,6 @@ if (document.getElementById("weatherForecastChart")) {
   loadWeatherForecastChart();
 }
 
-async function loadRecommendationPreview() {
-  const preview = document.getElementById("dashboardRecommendationPreview");
-  const countElement = document.getElementById("dashboardRecommendationCount");
-  const noteElement = document.getElementById("dashboardRecommendationNote");
-
-  if (!preview && !countElement) {
-    return;
-  }
-
-  try {
-    const payload = await apiGet("/recommendations");
-    const recommendations = payload.recommendations || [];
-
-    if (countElement) {
-      countElement.textContent = String(payload.recommendationCount || 0);
-    }
-
-    if (noteElement) {
-      noteElement.textContent = recommendations.length
-        ? `${payload.evaluatedRuleCount} rules evaluated`
-        : "No rule needs attention";
-      noteElement.classList.toggle("warning-text", recommendations.length > 0);
-      noteElement.classList.toggle("positive", recommendations.length === 0);
-    }
-
-    if (!preview) {
-      return;
-    }
-
-    const category = document.getElementById("dashboardRecommendationCategory");
-    const title = document.getElementById("dashboardRecommendationTitle");
-    const description = document.getElementById(
-      "dashboardRecommendationDescription"
-    );
-    const reason = document.getElementById("dashboardRecommendationReason");
-    const rule = document.getElementById("dashboardRecommendationRule");
-    const status = document.getElementById("dashboardRecommendationStatus");
-
-    if (!recommendations.length) {
-      if (category) category.textContent = "All clear";
-      if (title) title.textContent = "No recommendation is currently triggered";
-      if (description) {
-        description.textContent =
-          "The available sensor and weather evidence did not cross any configured rule threshold.";
-      }
-      if (reason) reason.textContent = "";
-      if (rule) rule.textContent = `${payload.evaluatedRuleCount} evaluated`;
-      if (status) status.textContent = "No action needed";
-      return;
-    }
-
-    const recommendation = recommendations[0];
-    if (category) category.textContent = recommendation.category;
-    if (title) title.textContent = recommendation.title;
-    if (description) description.textContent = recommendation.description;
-    if (reason) reason.textContent = recommendation.reason;
-    if (rule) rule.textContent = recommendation.ruleId;
-    if (status) status.textContent = "Pending review";
-  } catch (error) {
-    console.error("Could not load recommendation preview:", error);
-
-    if (countElement) countElement.textContent = "—";
-    if (noteElement) {
-      noteElement.textContent = "Recommendation service unavailable";
-      noteElement.classList.add("warning-text");
-    }
-
-    const title = document.getElementById("dashboardRecommendationTitle");
-    const description = document.getElementById(
-      "dashboardRecommendationDescription"
-    );
-    const status = document.getElementById("dashboardRecommendationStatus");
-    if (title) title.textContent = "Could not load recommendations";
-    if (description) description.textContent = error.message;
-    if (status) status.textContent = "Unavailable";
-  }
-}
-
-if (document.getElementById("dashboardRecommendationPreview")) {
+if (document.getElementById("dashboardRecommendationTitle")) {
   loadRecommendationPreview();
 }

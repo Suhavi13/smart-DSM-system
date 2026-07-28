@@ -24,37 +24,37 @@
         <div>
           <h1>Good morning, <span id="currentUser">Operator</span></h1>
         </div>
-        <div class="dashboard-update" id="dashboardDataTimestamp">
+        <!-- <div class="dashboard-update" id="dashboardDataTimestamp">
           Historical data prototype
-        </div>
+        </div> -->
       </section>
 
       <section class="summary-grid" aria-label="Building summary">
         <article class="summary-card summary-temperature">
           <div class="summary-card-top"><span>Outdoor temperature</span></div>
-          <p class="summary-value" id="summaryOutdoorTemperature">
-            &mdash;
-          </p>
+          <p class="summary-value" id="summaryOutdoorTemperature">&mdash;</p>
           <p class="summary-note" id="summaryOutdoorCondition">
             Loading external weather&hellip;
           </p>
         </article>
         <article class="summary-card summary-humidity">
           <div class="summary-card-top"><span>Outdoor humidity</span></div>
-          <p class="summary-value" id="summaryOutdoorHumidity">
-            &mdash;
-          </p>
+          <p class="summary-value" id="summaryOutdoorHumidity">&mdash;</p>
           <p class="summary-note" id="summaryWeatherCacheStatus">
             Open-Meteo via backend
           </p>
         </article>
         <article class="summary-card summary-energy">
-          <div class="summary-card-top"><span>Energy usage (sample)</span></div>
-          <p class="summary-value">18.7<span> kWh</span></p>
-          <p class="summary-note positive">8% below yesterday</p>
+          <div class="summary-card-top"><span>Latest period energy</span></div>
+          <p class="summary-value" id="summaryEnergyUsage">&mdash;</p>
+          <p class="summary-note positive" id="summaryEnergyNote">
+            Calculating from cumulative readings&hellip;
+          </p>
         </article>
         <article class="summary-card summary-price">
-          <div class="summary-card-top"><span>Electricity price (sample)</span></div>
+          <div class="summary-card-top">
+            <span>Electricity price (sample)</span>
+          </div>
           <p class="summary-value">0.14<span> /kWh</span></p>
           <p class="summary-note">Current sample rate</p>
         </article>
@@ -65,11 +65,11 @@
         </article>
         <article class="summary-card summary-pending">
           <div class="summary-card-top">
-            <span>Triggered recommendations</span>
+            <span>Active recommendations</span>
           </div>
           <p class="summary-value" id="dashboardRecommendationCount">&mdash;</p>
           <p class="summary-note warning-text" id="dashboardRecommendationNote">
-            Loading rule service&hellip;
+            Evaluating recommendation rules&hellip;
           </p>
         </article>
       </section>
@@ -82,7 +82,7 @@
           <div class="panel-heading">
             <div>
               <h2>Indoor Temperature Conditions</h2>
-              <p>Average of 14 indoor ambient and 17 in-wall temperature sensors, with CO₂</p>
+              <!-- <p>Average of 14 indoor ambient and 17 in-wall temperature sensors</p> -->
             </div>
           </div>
           <div
@@ -113,23 +113,29 @@
             >
               Apply
             </button>
-            <span id="conditionsFilterStatus" role="status"></span>
+            <!-- <span id="conditionsFilterStatus" role="status"></span> -->
           </div>
           <div class="chart-container">
             <canvas
               id="conditionsChart"
-              aria-label="Average indoor ambient and in-wall temperature with CO₂ line chart"
+              aria-label="Average indoor ambient and in-wall temperature line chart"
             ></canvas>
           </div>
         </article>
         <article class="dashboard-panel chart-panel energy-chart-panel">
           <div class="panel-heading">
             <div>
-              <h2>Site Consumption Trend</h2>
-              <p>Historical building power consumption in kilowatts</p>
+              <h2>Energy Consumption and Demand</h2>
+              <!-- <p>
+                Energy usage is calculated from cumulative Wh changes; average
+                demand is derived in Watts
+              </p> -->
             </div>
           </div>
-          <div class="chart-filter-bar" aria-label="Site consumption chart filters">
+          <div
+            class="chart-filter-bar"
+            aria-label="Site consumption chart filters"
+          >
             <label>
               Start date
               <input type="date" id="chartStartDate" />
@@ -143,19 +149,27 @@
               <select id="chartInterval">
                 <option value="raw">Raw</option>
                 <option value="15min">15 minutes</option>
-                <option value="hour" selected>Hourly average</option>
-                <option value="day">Daily average</option>
+                <option value="hour">Hourly usage</option>
+                <option value="day" selected>Daily usage</option>
+              </select>
+            </label>
+            <label>
+              Display
+              <select id="energyMetric">
+                <option value="kWh" selected>Energy (kWh)</option>
+                <option value="Wh">Energy (Wh)</option>
+                <option value="W">Average demand (W)</option>
               </select>
             </label>
             <button type="button" class="primary-button" id="applyChartFilters">
               Apply
             </button>
-            <span id="chartFilterStatus" role="status"></span>
+            <!-- <span id="chartFilterStatus" role="status"></span> -->
           </div>
           <div class="chart-container energy-chart-container">
             <canvas
               id="energyChart"
-              aria-label="Weekly energy usage bar chart"
+              aria-label="Energy usage and average demand chart"
             ></canvas>
           </div>
         </article>
@@ -168,22 +182,16 @@
               <h2>Calgary Weather Forecast</h2>
               <p>Current conditions and seven-day outdoor forecast</p>
             </div>
-            <span class="api-status" id="weatherApiStatus" role="status">
+            <!-- <span class="api-status" id="weatherApiStatus" role="status">
               Loading
-            </span>
+            </span> -->
           </div>
           <div class="weather-current">
-            <div
-              class="weather-symbol"
-              id="weatherSymbol"
-              aria-hidden="true"
-            >
+            <div class="weather-symbol" id="weatherSymbol" aria-hidden="true">
               &#9725;
             </div>
             <div>
-              <p class="weather-temp" id="weatherCurrentTemperature">
-                &mdash;
-              </p>
+              <p class="weather-temp" id="weatherCurrentTemperature">&mdash;</p>
               <p id="weatherCurrentCondition">Loading forecast&hellip;</p>
             </div>
             <dl class="weather-details">
@@ -218,43 +226,32 @@
           </p>
         </article>
 
-        <article
-          class="dashboard-panel recommendation-preview"
-          id="dashboardRecommendationPreview"
-        >
+        <article class="dashboard-panel recommendation-preview">
           <div class="panel-heading">
-            <h2>Latest recommendation</h2>
+            <h2>Recommendation</h2>
           </div>
 
-          <p
-            class="recommendation-category"
-            id="dashboardRecommendationCategory"
-          >
-            Loading&hellip;
-          </p>
-          <h3 id="dashboardRecommendationTitle">Checking rule evidence</h3>
+          <h3 id="dashboardRecommendationTitle">
+            Loading recommendation&hellip;
+          </h3>
           <p id="dashboardRecommendationDescription">
-            The backend is evaluating sensor and external values.
+            The recommendation service is evaluating sensor and weather rules.
           </p>
-          <p
-            class="recommendation-reason"
-            id="dashboardRecommendationReason"
-          ></p>
 
           <div class="recommendation-preview-details">
             <div>
-              <span>Rule</span>
-              <strong id="dashboardRecommendationRule">&mdash;</strong>
+              <span>Priority</span>
+              <strong id="dashboardRecommendationPriority">&mdash;</strong>
             </div>
             <div>
-              <span>Status</span>
-              <strong id="dashboardRecommendationStatus">Loading</strong>
+              <span>Triggered by</span>
+              <strong id="dashboardRecommendationEvidence">&mdash;</strong>
             </div>
           </div>
 
           <div class="recommendation-preview-footer">
             <a class="recommendation-link-button" href="recommendations.html"
-              >View evidence and decide</a
+              >View recommendations</a
             >
           </div>
         </article>
@@ -263,9 +260,9 @@
 
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=5"></script>
-    <script src="api.js?v=5"></script>
-    <script src="script.js?v=5"></script>
-    <script src="backend-data.js?v=5"></script>
+    <script src="config.js?v=6"></script>
+    <script src="api.js?v=6"></script>
+    <script src="script.js?v=6"></script>
+    <script src="backend-data.js?v=6"></script>
   </body>
 </html>

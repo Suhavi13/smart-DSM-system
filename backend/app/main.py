@@ -9,24 +9,24 @@ from sqlalchemy.orm import Session
 
 from .cache_service import cache
 from .dashboard_sensors import (
+    ENERGY_CONSUMPTION_SENSOR_CODE,
     INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES,
-    INDOOR_CO2_SENSOR_CODE,
     INDOOR_TEMPERATURE_SENSOR_CODES,
     INDOOR_WALL_TEMPERATURE_SENSOR_CODES,
 )
 from .database import get_db
 from .models import SensorPoint, SensorReading
-from .recommendation_service import generate_recommendations
 from .schemas import (
     DashboardOverviewResponse,
+    EnergyConsumptionResponse,
     IndoorConditionsResponse,
-    RecommendationListResponse,
     SensorReadingsResponse,
     SensorSummaryResponse,
     WeatherForecastResponse,
 )
 from .services import (
     aggregate_temperature_sensor_group,
+    derive_energy_usage_points,
     scale_value,
     serialize_readings,
 )
@@ -36,37 +36,33 @@ from .weather_service import (
 )
 
 from .routers.decisions import router as decisions_router
+from .routers.recommendations import router as recommendations_router
+
 
 
 ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
     title="GBTAC Sensor Data Service",
-    version="0.5.0",
+    version="0.6.0",
     description=(
-        "API for the historical GBTAC sensor inventory, Redis-cached "
-        "dashboard aggregation, normalized external weather data, and "
-        "transparent rule-based recommendations."
+        "Read-only API for the full historical GBTAC sensor inventory, "
+        "Redis-cached dashboard aggregation, and normalized external "
+        "weather data."
     ),
 )
 
 app.include_router(decisions_router)
-
-DEFAULT_CORS_ORIGINS = [
-    "http://127.0.0.1:8081",
-    "http://localhost:8081",
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-]
-CONFIGURED_CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "").split(",")
-    if origin.strip()
-]
+app.include_router(recommendations_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CONFIGURED_CORS_ORIGINS or DEFAULT_CORS_ORIGINS,
+    allow_origins=[
+        "http://127.0.0.1:8081",
+        "http://localhost:8081",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
@@ -84,9 +80,17 @@ DASHBOARD_OVERVIEW_CACHE_SECONDS = max(
 DASHBOARD_CHART_CACHE_SECONDS = max(
     30, int(os.getenv("DASHBOARD_CHART_CACHE_SECONDS", "300"))
 )
-SITE_CONSUMPTION_SENSOR_CODE = os.getenv(
-    "SITE_CONSUMPTION_SENSOR_CODE", "30000_TL342"
+ENERGY_CONSUMPTION_COUNTER_CODE = os.getenv(
+    "ENERGY_CONSUMPTION_SENSOR_CODE",
+    ENERGY_CONSUMPTION_SENSOR_CODE,
 ).strip()
+ENERGY_COUNTER_DIRECTION = os.getenv(
+    "ENERGY_COUNTER_DIRECTION", "decreasing"
+).strip().lower()
+
+if ENERGY_COUNTER_DIRECTION not in {"auto", "increasing", "decreasing"}:
+    ENERGY_COUNTER_DIRECTION = "decreasing"
+
 
 
 def serialize_sensor(
@@ -163,14 +167,9 @@ def health_check():
     return {
         "status": "ok",
         "service": "GBTAC Sensor Data and Integration Service",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "datasetType": "historical",
         "externalApi": "Open-Meteo",
-        "recommendationService": {
-            "enabled": True,
-            "ruleCount": 3,
-            "explainableEvidence": True,
-        },
         "cache": {
             "enabled": cache.enabled,
             "provider": "Redis",
@@ -183,16 +182,6 @@ def health_check():
             ),
         },
     }
-
-
-@app.get(
-    "/api/v1/recommendations",
-    response_model=RecommendationListResponse,
-    tags=["Recommendations"],
-)
-def get_recommendations(db: Session = Depends(get_db)):
-    """Evaluate Phase 5 rules and return explainable recommendations."""
-    return generate_recommendations(db)
 
 
 @app.get(
@@ -351,10 +340,15 @@ def get_sensor_readings(
 
 
 @app.get(
-    "/api/v1/dashboard/site-consumption",
-    response_model=SensorReadingsResponse,
+    "/api/v1/dashboard/energy-consumption",
+    response_model=EnergyConsumptionResponse,
 )
-def get_dashboard_site_consumption(
+@app.get(
+    "/api/v1/dashboard/site-consumption",
+    response_model=EnergyConsumptionResponse,
+    include_in_schema=False,
+)
+def get_dashboard_energy_consumption(
     response: Response,
     start: datetime | None = Query(
         default=None,
@@ -365,16 +359,26 @@ def get_dashboard_site_consumption(
         description="Inclusive end timestamp in ISO-8601 format.",
     ),
     interval: ReadingInterval = Query(
-        default="hour",
-        description="Return raw, 15-minute, hourly, or daily points.",
+        default="day",
+        description=(
+            "Group derived consumption into raw, 15-minute, hourly, or "
+            "daily periods."
+        ),
     ),
     limit: int = Query(default=500, ge=1, le=10_000),
     db: Session = Depends(get_db),
 ):
-    """Return the configured site-consumption series through Redis cache."""
+    """Derive Wh/kWh usage and average W from a cumulative energy counter."""
+    if start and end and start > end:
+        raise HTTPException(
+            status_code=400,
+            detail="The start timestamp must be before the end timestamp.",
+        )
+
     cache_key = cache.parameter_key(
-        "dashboard:site-consumption",
-        sensor_code=SITE_CONSUMPTION_SENSOR_CODE,
+        "dashboard:energy-consumption",
+        sensor_code=ENERGY_CONSUMPTION_COUNTER_CODE,
+        counter_direction=ENERGY_COUNTER_DIRECTION,
         start=start,
         end=end,
         interval=interval,
@@ -385,14 +389,88 @@ def get_dashboard_site_consumption(
         response.headers["X-Cache"] = "HIT"
         return cached_payload
 
-    payload = get_sensor_readings(
-        sensor_code=SITE_CONSUMPTION_SENSOR_CODE,
-        start=start,
-        end=end,
-        interval=interval,
-        limit=limit,
-        db=db,
+    sensor = (
+        db.query(SensorPoint)
+        .filter(
+            SensorPoint.sensor_code == ENERGY_CONSUMPTION_COUNTER_CODE
+        )
+        .first()
     )
+
+    if sensor is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Configured cumulative energy sensor "
+                f"{ENERGY_CONSUMPTION_COUNTER_CODE} was not found."
+            ),
+        )
+
+    query = db.query(SensorReading).filter(
+        SensorReading.sensor_point_id == sensor.sensor_point_id
+    )
+
+    if start:
+        query = query.filter(SensorReading.reading_time >= start)
+
+    if end:
+        query = query.filter(SensorReading.reading_time <= end)
+
+    readings = query.order_by(SensorReading.reading_time.asc()).all()
+
+    # Include the immediately preceding reading so the first period inside a
+    # requested date range can still be calculated as a delta.
+    if start:
+        previous_reading = (
+            db.query(SensorReading)
+            .filter(
+                SensorReading.sensor_point_id == sensor.sensor_point_id,
+                SensorReading.reading_time < start,
+            )
+            .order_by(SensorReading.reading_time.desc())
+            .first()
+        )
+        if previous_reading is not None:
+            readings.insert(0, previous_reading)
+
+    try:
+        points, counter_direction, skipped_counter_changes = (
+            derive_energy_usage_points(
+                sensor=sensor,
+                readings=readings,
+                interval=interval,
+                limit=limit,
+                counter_direction=ENERGY_COUNTER_DIRECTION,
+            )
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+    payload = {
+        "datasetType": "historical",
+        "interval": interval,
+        "start": start,
+        "end": end,
+        "pointCount": len(points),
+        "sensor": {
+            "sensorCode": sensor.sensor_code,
+            "displayName": sensor.display_name,
+            "category": sensor.category,
+            "priority": sensor.priority,
+            "rawUnit": sensor.raw_unit,
+            "displayUnit": sensor.display_unit,
+            "scaleFactor": sensor.scale_factor or 1.0,
+            "signConvention": sensor.sign_convention,
+            "dataType": sensor.data_type,
+            "location": sensor.location,
+        },
+        "sourceUnit": sensor.raw_unit or sensor.display_unit or "Wh",
+        "energyUnit": "Wh",
+        "demandUnit": "W",
+        "counterDirection": counter_direction,
+        "skippedCounterChanges": skipped_counter_changes,
+        "points": points,
+    }
     cached = cache.set_json(
         cache_key,
         payload,
@@ -491,58 +569,12 @@ def get_indoor_conditions(
         limit=limit,
     )
 
-    co2_sensor = (
-        db.query(SensorPoint)
-        .filter(SensorPoint.sensor_code == INDOOR_CO2_SENSOR_CODE)
-        .first()
-    )
-    co2_values_by_timestamp = {}
-    co2_unit = "ppm"
-
-    if co2_sensor is not None:
-        co2_unit = co2_sensor.display_unit or "ppm"
-        co2_query = db.query(SensorReading).filter(
-            SensorReading.sensor_point_id == co2_sensor.sensor_point_id
-        )
-
-        if start:
-            co2_query = co2_query.filter(
-                SensorReading.reading_time >= start
-            )
-
-        if end:
-            co2_query = co2_query.filter(
-                SensorReading.reading_time <= end
-            )
-
-        co2_readings = co2_query.order_by(
-            SensorReading.reading_time.asc()
-        ).all()
-        co2_points = serialize_readings(
-            co2_sensor,
-            co2_readings,
-            interval,
-            limit,
-        )
-        co2_values_by_timestamp = {
-            point["timestamp"]: point["value"]
-            for point in co2_points
-        }
-
-    points = [
-        {
-            **point,
-            "co2Ppm": co2_values_by_timestamp.get(point["timestamp"]),
-        }
-        for point in temperature_points
-    ]
-
     payload = {
         "datasetType": "historical",
         "interval": interval,
         "start": start,
         "end": end,
-        "pointCount": len(points),
+        "pointCount": len(temperature_points),
         "configuredTemperatureSensorCount": len(
             INDOOR_TEMPERATURE_SENSOR_CODES
         ),
@@ -555,9 +587,7 @@ def get_indoor_conditions(
         ),
         "missingTemperatureSensorCodes": missing_codes,
         "temperatureUnit": "°C",
-        "co2SensorCode": INDOOR_CO2_SENSOR_CODE,
-        "co2Unit": co2_unit,
-        "points": points,
+        "points": temperature_points,
     }
     cached = cache.set_json(
         cache_key,

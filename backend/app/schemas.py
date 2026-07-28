@@ -144,7 +144,6 @@ class IndoorConditionsPointResponse(BaseModel):
     minimumTemperatureC: float
     maximumTemperatureC: float
     contributingSensorCount: int
-    co2Ppm: Optional[float] = None
 
 
 class IndoorConditionsResponse(BaseModel):
@@ -159,9 +158,86 @@ class IndoorConditionsResponse(BaseModel):
     wallTemperatureSensorCount: int
     missingTemperatureSensorCodes: list[str]
     temperatureUnit: str = "°C"
-    co2SensorCode: str
-    co2Unit: str = "ppm"
     points: list[IndoorConditionsPointResponse]
+
+
+class EnergyConsumptionPointResponse(BaseModel):
+    timestamp: datetime
+    energyWh: float
+    energyKwh: float
+    averageWatts: Optional[float] = None
+    durationHours: float
+    previousCumulativeWh: float
+    currentCumulativeWh: float
+    count: int = 1
+
+
+class EnergyConsumptionResponse(BaseModel):
+    datasetType: str = "historical"
+    interval: str
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    pointCount: int
+    sensor: ReadingSensorResponse
+    sourceUnit: str
+    energyUnit: str = "Wh"
+    demandUnit: str = "W"
+    counterDirection: Literal["increasing", "decreasing"]
+    skippedCounterChanges: int = 0
+    points: list[EnergyConsumptionPointResponse]
+
+class RecommendationEvidenceResponse(BaseModel):
+    evidenceType: Literal["sensor", "external"]
+    label: str
+    sourceName: str
+    sourceCodes: list[str] = Field(default_factory=list)
+    value: float
+    unit: str
+    timestamp: datetime | str | None = None
+    comparison: str
+    details: str
+
+
+class RecommendationRuleResponse(BaseModel):
+    ruleId: str
+    condition: str
+
+
+class RecommendationItemResponse(BaseModel):
+    recommendationId: str
+    recommendationVersion: int = 1
+    category: str
+    title: str
+    description: str
+    reason: str
+    priority: Literal["High", "Medium", "Low"]
+    status: Literal["triggered"]
+    rule: RecommendationRuleResponse
+    evidence: list[RecommendationEvidenceResponse]
+
+
+class RecommendationEvaluationResponse(BaseModel):
+    ruleId: str
+    ruleName: str
+    triggered: bool
+    summary: str
+
+
+class SkippedRecommendationRuleResponse(BaseModel):
+    ruleId: str
+    reason: str
+
+
+class RecommendationServiceResponse(BaseModel):
+    datasetType: str
+    generatedAt: datetime
+    rulesEvaluated: int
+    recommendationCount: int
+    dataNotice: str
+    recommendations: list[RecommendationItemResponse]
+    evaluations: list[RecommendationEvaluationResponse]
+    skippedRules: list[SkippedRecommendationRuleResponse]
+
 
 class DecisionCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -220,43 +296,3 @@ class DecisionResponse(BaseModel):
     created_at: datetime = Field(
         alias="createdAt"
     )
-
-
-class RecommendationEvidenceResponse(BaseModel):
-    sourceType: Literal["sensor", "external", "derived"]
-    label: str
-    value: Any = None
-    unit: Optional[str] = None
-    sensorCode: Optional[str] = None
-    displayName: Optional[str] = None
-    rawValue: Optional[float] = None
-    rawUnit: Optional[str] = None
-    timestamp: Optional[datetime | str] = None
-    source: Optional[str] = None
-    note: Optional[str] = None
-
-
-class RecommendationResponse(BaseModel):
-    recommendationId: str
-    recommendationVersion: int
-    ruleId: str
-    category: str
-    priority: Literal["Low", "Medium", "High"]
-    title: str
-    description: str
-    recommendedAction: str
-    reason: str
-    status: Literal["pending"] = "pending"
-    evidence: list[RecommendationEvidenceResponse]
-    limitations: list[str] = Field(default_factory=list)
-
-
-class RecommendationListResponse(BaseModel):
-    generatedAt: datetime
-    datasetType: str = "historical"
-    datasetLatestTimestamp: Optional[datetime] = None
-    externalDataStatus: Literal["available", "stale", "unavailable"]
-    evaluatedRuleCount: int
-    recommendationCount: int
-    warnings: list[str] = Field(default_factory=list)
-    recommendations: list[RecommendationResponse]

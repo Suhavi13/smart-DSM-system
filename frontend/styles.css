@@ -2129,125 +2129,127 @@ body.auth-page .weather-symbol,
 }
 
 /* Phase 5 explainable recommendation service */
-.recommendation-summary {
-  margin: 0 0 1rem;
-  color: var(--muted);
-  line-height: 1.5;
+.recommendation-data-notice,
+.recommendation-loading,
+.recommendation-empty-state,
+.recommendation-error-state {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: #2F3947;
+  line-height: 1.55;
 }
 
-.recommendation-action-panel {
-  padding: 0.9rem 1rem;
-  border-left: 4px solid var(--sky-blue);
-  border-radius: 8px;
-  background: #f3f9fc;
+.recommendation-description {
+  margin: 0;
+  color: #1F2937;
+  line-height: 1.6;
 }
 
-.recommendation-action-panel p {
-  margin: 0.35rem 0 0;
+.recommendation-rule-details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--white);
+  overflow: hidden;
+}
+
+.recommendation-rule-details summary {
+  padding: 0.85rem 1rem;
+  background: var(--surface-strong);
   color: #111827;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.recommendation-rule-condition {
+  margin: 0;
+  padding: 1rem 1rem 0;
+  color: #1F2937;
   line-height: 1.55;
 }
 
 .recommendation-evidence {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.recommendation-evidence summary {
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  color: var(--accent);
-  font-weight: 800;
-}
-
-.evidence-list {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8rem;
   margin: 0;
-  padding: 0 1rem 1rem;
+  padding: 1rem;
   list-style: none;
 }
 
-.evidence-item {
-  padding: 0.85rem;
+.recommendation-evidence-item {
+  padding: 0.9rem;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface-strong);
+  border-left: 4px solid var(--sky-blue);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
-.evidence-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-}
-
-.evidence-source-type {
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: var(--midnight-plum);
-  color: #ffffff;
-  font-size: 0.7rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.evidence-value {
-  margin: 0.45rem 0;
-  color: #111827;
-  font-size: 1.15rem;
-  font-weight: 800;
-}
-
-.evidence-metadata,
-.evidence-raw,
-.evidence-note {
-  margin: 0.25rem 0 0;
-  color: #4b5563;
-  font-size: 0.85rem;
+.recommendation-evidence-item p {
+  margin: 0.35rem 0 0;
+  color: #2F3947;
   line-height: 1.45;
 }
 
-.evidence-note {
-  font-style: italic;
+.recommendation-evidence-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.recommendation-limitations {
-  padding: 0.85rem 1rem;
-  border-radius: 9px;
-  background: #fff7ed;
-  color: #7c2d12;
+.evidence-type {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--midnight-plum);
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: capitalize;
 }
 
-.recommendation-limitations ul {
-  margin: 0.45rem 0 0;
-  padding-left: 1.2rem;
+.evidence-external {
+  background: #004A75;
 }
 
-.recommendation-limitations li + li {
-  margin-top: 0.3rem;
+.recommendation-evidence-value {
+  color: #111827 !important;
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
-.rule-id {
-  color: var(--muted);
-  font-size: 0.85rem;
+.recommendation-evidence-source {
+  font-size: 0.82rem;
+}
+
+.recommendation-evaluation-list {
+  margin: 0.8rem 0 0;
+  padding-left: 1.25rem;
+  color: #2F3947;
+}
+
+.recommendation-evaluation-list li + li {
+  margin-top: 0.55rem;
+}
+
+.recommendation-error-state {
+  border-color: #8B1E1E;
 }
 
 .decision-status {
   min-height: 1.25rem;
   margin: 0;
+  color: #2F3947;
   font-weight: 700;
 }
 
-.recommendation-empty-state {
-  padding: 2rem;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  text-align: center;
+.decision-status.error-message {
+  color: #8B1E1E;
 }
 
-.recommendation-empty-state h2 {
-  margin-top: 0;
+.recommendation-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }

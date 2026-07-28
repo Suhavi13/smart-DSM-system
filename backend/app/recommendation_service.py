@@ -1,505 +1,587 @@
-"""Transparent rule-based recommendations for Phase 5.
+"""Explainable rule-based recommendations for the GBTAC dashboard.
 
-The service deliberately uses a small set of operator-readable rules rather
-than a black-box model. Every returned recommendation includes the sensor,
-external, and derived values that caused the rule to trigger.
+Phase 5 intentionally uses a small number of transparent rules rather than a
+black-box model. Every triggered recommendation contains the exact sensor or
+external values that caused the rule to fire.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 import os
-from statistics import median
-from typing import Any
+from typing import Any, Callable
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .dashboard_sensors import INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES
 from .models import SensorPoint, SensorReading
 from .services import scale_value
 from .weather_service import WeatherProviderError, get_weather_forecast
 
 
-SITE_CONSUMPTION_SENSOR_CODE = os.getenv(
-    "SITE_CONSUMPTION_SENSOR_CODE", "30000_TL342"
-).strip()
-HVAC_CONSUMPTION_SENSOR_CODE = os.getenv(
-    "HVAC_CONSUMPTION_SENSOR_CODE", "30000_TL208"
-).strip()
-LIGHTING_CONSUMPTION_SENSOR_CODE = os.getenv(
-    "LIGHTING_CONSUMPTION_SENSOR_CODE", "30000_TL209"
-).strip()
-DHW_CONSUMPTION_SENSOR_CODE = os.getenv(
-    "DHW_CONSUMPTION_SENSOR_CODE", "30000_TL210"
+SITE_POWER_SENSOR_CODE = os.getenv(
+    "RECOMMENDATION_SITE_POWER_SENSOR_CODE", "30000_TL342"
 ).strip()
 
-OCCUPIED_START_HOUR = int(os.getenv("OCCUPIED_START_HOUR", "7"))
-OCCUPIED_END_HOUR = int(os.getenv("OCCUPIED_END_HOUR", "19"))
-LIGHTING_AFTER_HOURS_THRESHOLD_KW = float(
-    os.getenv("LIGHTING_AFTER_HOURS_THRESHOLD_KW", "0.25")
+
+def _float_setting(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+OVERNIGHT_BASELOAD_THRESHOLD_W = _float_setting(
+    "OVERNIGHT_BASELOAD_THRESHOLD_W", 8_000.0
 )
-DHW_BASELINE_SAMPLE_COUNT = int(
-    os.getenv("DHW_BASELINE_SAMPLE_COUNT", "10000")
+PEAK_DEMAND_MINIMUM_W = _float_setting(
+    "PEAK_DEMAND_MINIMUM_W", 15_000.0
 )
-DHW_SPIKE_RATIO = float(os.getenv("DHW_SPIKE_RATIO", "3.0"))
-DHW_MINIMUM_TRIGGER_KW = float(
-    os.getenv("DHW_MINIMUM_TRIGGER_KW", "0.15")
+PEAK_DEMAND_RATIO = _float_setting("PEAK_DEMAND_RATIO", 1.5)
+ECONOMIZER_MIN_INDOOR_C = _float_setting(
+    "ECONOMIZER_MIN_INDOOR_C", 22.0
 )
-WARM_WEATHER_THRESHOLD_C = float(
-    os.getenv("WARM_WEATHER_THRESHOLD_C", "20.0")
+ECONOMIZER_MIN_OUTDOOR_C = _float_setting(
+    "ECONOMIZER_MIN_OUTDOOR_C", 5.0
 )
-HVAC_MINIMUM_TRIGGER_KW = float(
-    os.getenv("HVAC_MINIMUM_TRIGGER_KW", "0.5")
-)
-HVAC_SITE_SHARE_THRESHOLD = float(
-    os.getenv("HVAC_SITE_SHARE_THRESHOLD", "0.15")
+ECONOMIZER_TEMPERATURE_DIFFERENCE_C = _float_setting(
+    "ECONOMIZER_TEMPERATURE_DIFFERENCE_C", 2.0
 )
 
 
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _sensor_version(timestamp: datetime) -> int:
-    """Create a repeatable integer version for one hour of sensor evidence."""
-    aware = timestamp
-    if aware.tzinfo is None:
-        aware = aware.replace(tzinfo=timezone.utc)
-    return int(aware.timestamp() // 3600)
-
-
-def _daily_version(timestamp: datetime) -> int:
-    return int(timestamp.strftime("%Y%m%d"))
-
-
-def _round(value: float | None, places: int = 2) -> float | None:
-    if value is None:
-        return None
-    return round(float(value), places)
-
-
-def _format_schedule() -> str:
-    return f"{OCCUPIED_START_HOUR:02d}:00-{OCCUPIED_END_HOUR:02d}:00"
-
-
-def _load_sensor(db: Session, sensor_code: str) -> SensorPoint | None:
-    return (
-        db.query(SensorPoint)
-        .filter(SensorPoint.sensor_code == sensor_code)
-        .first()
-    )
-
-
-def _latest_reading(
-    db: Session,
-    sensor: SensorPoint | None,
-) -> SensorReading | None:
-    if sensor is None:
-        return None
-    return (
-        db.query(SensorReading)
-        .filter(SensorReading.sensor_point_id == sensor.sensor_point_id)
-        .order_by(SensorReading.reading_time.desc())
-        .first()
-    )
-
-
-def _recent_scaled_values(
-    db: Session,
-    sensor: SensorPoint | None,
-    limit: int,
-) -> list[float]:
-    if sensor is None:
-        return []
-
-    rows = (
-        db.query(SensorReading)
-        .filter(
-            SensorReading.sensor_point_id == sensor.sensor_point_id,
-            SensorReading.value.is_not(None),
-        )
-        .order_by(SensorReading.reading_time.desc())
-        .limit(limit)
-        .all()
-    )
-
-    values = []
-    for row in rows:
-        value = scale_value(sensor, row.value)
-        if value is not None:
-            values.append(float(value))
-    return values
+def _round(value: float, digits: int = 1) -> float:
+    return round(float(value), digits)
 
 
 def _sensor_evidence(
     *,
     label: str,
     sensor: SensorPoint,
-    reading: SensorReading,
-    interpreted_value: float | None = None,
-    interpreted_unit: str | None = None,
-    note: str | None = None,
-) -> dict[str, Any]:
-    scaled = scale_value(sensor, reading.value)
-    return {
-        "sourceType": "sensor",
-        "label": label,
-        "sensorCode": sensor.sensor_code,
-        "displayName": sensor.display_name,
-        "value": _round(
-            interpreted_value if interpreted_value is not None else scaled
-        ),
-        "unit": interpreted_unit or sensor.display_unit or sensor.raw_unit,
-        "rawValue": _round(reading.value),
-        "rawUnit": sensor.raw_unit,
-        "timestamp": reading.reading_time,
-        "source": "GBTAC historical sensor dataset",
-        "note": note,
-    }
-
-
-def _derived_evidence(
-    *,
-    label: str,
-    value: float | str,
-    unit: str | None = None,
-    note: str | None = None,
+    value: float,
+    unit: str,
+    timestamp: datetime | None,
+    comparison: str,
+    details: str,
+    source_codes: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
-        "sourceType": "derived",
+        "evidenceType": "sensor",
         "label": label,
-        "value": _round(value) if isinstance(value, float) else value,
+        "sourceName": sensor.display_name,
+        "sourceCodes": source_codes or [sensor.sensor_code],
+        "value": value,
         "unit": unit,
-        "source": "Recommendation rule calculation",
-        "note": note,
+        "timestamp": timestamp,
+        "comparison": comparison,
+        "details": details,
     }
 
 
 def _external_evidence(
     *,
     label: str,
-    value: float | str | None,
-    unit: str | None,
+    source_name: str,
+    value: float,
+    unit: str,
     timestamp: str | None,
-    source: str,
-    note: str | None = None,
+    comparison: str,
+    details: str,
 ) -> dict[str, Any]:
     return {
-        "sourceType": "external",
+        "evidenceType": "external",
         "label": label,
-        "value": _round(value) if isinstance(value, float) else value,
+        "sourceName": source_name,
+        "sourceCodes": [],
+        "value": value,
         "unit": unit,
         "timestamp": timestamp,
-        "source": source,
-        "note": note,
+        "comparison": comparison,
+        "details": details,
     }
 
 
-def _after_hours_lighting_rule(
-    db: Session,
-) -> dict[str, Any] | None:
-    sensor = _load_sensor(db, LIGHTING_CONSUMPTION_SENSOR_CODE)
-    reading = _latest_reading(db, sensor)
-    if sensor is None or reading is None:
-        return None
-
-    lighting_kw = scale_value(sensor, reading.value)
-    if lighting_kw is None:
-        return None
-
-    hour = reading.reading_time.hour
-    outside_occupied_hours = not (
-        OCCUPIED_START_HOUR <= hour < OCCUPIED_END_HOUR
+def _load_site_power(db: Session) -> tuple[SensorPoint | None, list[SensorReading]]:
+    sensor = (
+        db.query(SensorPoint)
+        .filter(SensorPoint.sensor_code == SITE_POWER_SENSOR_CODE)
+        .first()
     )
-    if not (
-        outside_occupied_hours
-        and lighting_kw >= LIGHTING_AFTER_HOURS_THRESHOLD_KW
-    ):
+    if sensor is None:
+        return None, []
+
+    readings = (
+        db.query(SensorReading)
+        .filter(SensorReading.sensor_point_id == sensor.sensor_point_id)
+        .order_by(SensorReading.reading_time.asc())
+        .all()
+    )
+    return sensor, readings
+
+
+def _power_magnitude_w(sensor: SensorPoint, reading: SensorReading) -> float | None:
+    value = scale_value(sensor, reading.value)
+    if value is None:
         return None
 
-    return {
-        "recommendationId": "after-hours-lighting",
-        "recommendationVersion": _sensor_version(reading.reading_time),
-        "ruleId": "R1_AFTER_HOURS_LIGHTING",
-        "category": "Lighting",
-        "priority": "Medium",
-        "title": "Review lighting outside occupied hours",
+    # This confirmed GBTAC point reports consumption as negative W. Convert
+    # only negative consumption values into a positive magnitude; a positive
+    # value is not silently reclassified as consumption.
+    return max(0.0, -float(value))
+
+
+def _evaluate_overnight_baseload(
+    sensor: SensorPoint | None,
+    readings: list[SensorReading],
+) -> tuple[dict[str, Any] | None, dict[str, Any], str | None]:
+    rule_id = "overnight-baseload"
+    rule_name = "Overnight base-load threshold"
+
+    if sensor is None or not readings:
+        summary = f"Skipped because {SITE_POWER_SENSOR_CODE} has no readings."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
+
+    latest_timestamp = readings[-1].reading_time
+    evaluation_day = latest_timestamp.date()
+    if latest_timestamp.hour < 6:
+        evaluation_day = (latest_timestamp - timedelta(days=1)).date()
+
+    overnight_values: list[tuple[datetime, float]] = []
+    for reading in readings:
+        if reading.reading_time.date() != evaluation_day:
+            continue
+        if not 0 <= reading.reading_time.hour < 6:
+            continue
+        magnitude = _power_magnitude_w(sensor, reading)
+        if magnitude is not None:
+            overnight_values.append((reading.reading_time, magnitude))
+
+    if len(overnight_values) < 3:
+        summary = "Skipped because fewer than three overnight readings were available."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
+
+    average_w = sum(value for _, value in overnight_values) / len(overnight_values)
+    triggered = average_w >= OVERNIGHT_BASELOAD_THRESHOLD_W
+    summary = (
+        f"Overnight average was {_round(average_w):,.1f} W; the rule threshold "
+        f"is {_round(OVERNIGHT_BASELOAD_THRESHOLD_W):,.1f} W."
+    )
+
+    evaluation = {
+        "ruleId": rule_id,
+        "ruleName": rule_name,
+        "triggered": triggered,
+        "summary": summary,
+    }
+    if not triggered:
+        return None, evaluation, None
+
+    recommendation = {
+        "recommendationId": "reduce-overnight-baseload",
+        "recommendationVersion": int(evaluation_day.strftime("%Y%m%d")),
+        "category": "Energy",
+        "title": "Reduce overnight base load",
         "description": (
-            "The latest imported lighting reading is above the configured "
-            "after-hours threshold. Check schedules, overrides, and zones that "
-            "may have been left on."
-        ),
-        "recommendedAction": (
-            "Confirm whether the building was occupied at this timestamp. If "
-            "not, reduce the lighting schedule or investigate manual overrides."
+            "Review after-hours HVAC schedules, lighting, plug loads, and "
+            "equipment that may be operating unnecessarily between midnight "
+            "and 6:00 a.m."
         ),
         "reason": (
-            f"Lighting was {_round(lighting_kw)} kW at "
-            f"{reading.reading_time.isoformat()}, outside the configured "
-            f"occupied schedule of {_format_schedule()}."
+            f"Average site demand was {_round(average_w):,.0f} W during the "
+            f"latest overnight window, above the configured "
+            f"{_round(OVERNIGHT_BASELOAD_THRESHOLD_W):,.0f} W threshold."
         ),
-        "status": "pending",
+        "priority": (
+            "High"
+            if average_w >= OVERNIGHT_BASELOAD_THRESHOLD_W * 1.25
+            else "Medium"
+        ),
+        "status": "triggered",
+        "rule": {
+            "ruleId": rule_id,
+            "condition": (
+                "Average absolute site power from 00:00 through 05:59 is "
+                f">= {OVERNIGHT_BASELOAD_THRESHOLD_W:,.0f} W."
+            ),
+        },
         "evidence": [
             _sensor_evidence(
-                label="Lighting demand",
+                label="Overnight average demand",
                 sensor=sensor,
-                reading=reading,
-            ),
-            _derived_evidence(
-                label="Configured occupied schedule",
-                value=_format_schedule(),
-                note=(
-                    "The rule triggers before the start hour or at/after the "
-                    "end hour."
+                value=_round(average_w),
+                unit="W",
+                timestamp=overnight_values[-1][0],
+                comparison=(
+                    f"Threshold: {OVERNIGHT_BASELOAD_THRESHOLD_W:,.0f} W"
                 ),
-            ),
-            _derived_evidence(
-                label="After-hours trigger threshold",
-                value=LIGHTING_AFTER_HOURS_THRESHOLD_KW,
-                unit="kW",
-            ),
-        ],
-        "limitations": [
-            "The historical dataset does not confirm actual occupancy.",
-            "An operator should verify special events and approved overrides.",
+                details=(
+                    f"Calculated from {len(overnight_values)} readings on "
+                    f"{evaluation_day.isoformat()}. The source reports "
+                    "consumption as negative W, so the rule uses its positive "
+                    "magnitude."
+                ),
+            )
         ],
     }
+    return recommendation, evaluation, None
 
 
-def _dhw_baseline_rule(db: Session) -> dict[str, Any] | None:
-    sensor = _load_sensor(db, DHW_CONSUMPTION_SENSOR_CODE)
-    reading = _latest_reading(db, sensor)
-    if sensor is None or reading is None:
-        return None
+def _evaluate_peak_demand(
+    sensor: SensorPoint | None,
+    readings: list[SensorReading],
+) -> tuple[dict[str, Any] | None, dict[str, Any], str | None]:
+    rule_id = "peak-demand-spike"
+    rule_name = "Seven-day demand spike"
 
-    current_kw = scale_value(sensor, reading.value)
-    recent_values = _recent_scaled_values(
-        db,
-        sensor,
-        DHW_BASELINE_SAMPLE_COUNT,
+    if sensor is None or not readings:
+        summary = f"Skipped because {SITE_POWER_SENSOR_CODE} has no readings."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
+
+    latest_timestamp = readings[-1].reading_time
+    start_timestamp = latest_timestamp - timedelta(days=7)
+    window_values: list[tuple[datetime, float]] = []
+
+    for reading in readings:
+        if reading.reading_time < start_timestamp:
+            continue
+        magnitude = _power_magnitude_w(sensor, reading)
+        if magnitude is not None:
+            window_values.append((reading.reading_time, magnitude))
+
+    if len(window_values) < 3:
+        summary = "Skipped because fewer than three recent power readings were available."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
+
+    average_w = sum(value for _, value in window_values) / len(window_values)
+    peak_timestamp, peak_w = max(window_values, key=lambda item: item[1])
+    relative_threshold_w = average_w * PEAK_DEMAND_RATIO
+    effective_threshold_w = max(PEAK_DEMAND_MINIMUM_W, relative_threshold_w)
+    triggered = peak_w >= effective_threshold_w
+
+    summary = (
+        f"Seven-day peak was {_round(peak_w):,.1f} W versus an average of "
+        f"{_round(average_w):,.1f} W; trigger level was "
+        f"{_round(effective_threshold_w):,.1f} W."
     )
-    if current_kw is None or len(recent_values) < 20:
-        return None
+    evaluation = {
+        "ruleId": rule_id,
+        "ruleName": rule_name,
+        "triggered": triggered,
+        "summary": summary,
+    }
+    if not triggered:
+        return None, evaluation, None
 
-    baseline_kw = median(recent_values)
-    if baseline_kw <= 0:
-        return None
-
-    ratio = current_kw / baseline_kw
-    if not (
-        current_kw >= DHW_MINIMUM_TRIGGER_KW
-        and ratio >= DHW_SPIKE_RATIO
-    ):
-        return None
-
-    return {
-        "recommendationId": "dhw-above-baseline",
-        "recommendationVersion": _sensor_version(reading.reading_time),
-        "ruleId": "R2_DHW_ABOVE_BASELINE",
-        "category": "Domestic hot water",
+    recommendation = {
+        "recommendationId": "investigate-demand-spike",
+        "recommendationVersion": int(latest_timestamp.strftime("%Y%m%d")),
+        "category": "Demand",
+        "title": "Investigate the recent demand spike",
+        "description": (
+            "Check which major loads started near the peak timestamp and "
+            "consider staggering HVAC, pumps, laboratory equipment, or other "
+            "large loads to reduce simultaneous demand."
+        ),
+        "reason": (
+            f"The highest recent site demand was {_round(peak_w):,.0f} W, "
+            f"which exceeded the rule trigger of "
+            f"{_round(effective_threshold_w):,.0f} W."
+        ),
         "priority": "High",
-        "title": "Investigate domestic-hot-water demand",
-        "description": (
-            "The latest domestic-hot-water load is several times higher than "
-            "its recent median. Review the heating schedule, recirculation, "
-            "and possible continuous hot-water demand."
-        ),
-        "recommendedAction": (
-            "Compare the timestamp with expected hot-water use. Check the DHW "
-            "schedule and recirculation settings before changing equipment."
-        ),
-        "reason": (
-            f"The latest value was {_round(current_kw)} kW, which is "
-            f"{_round(ratio)} times the recent median of "
-            f"{_round(baseline_kw)} kW."
-        ),
-        "status": "pending",
+        "status": "triggered",
+        "rule": {
+            "ruleId": rule_id,
+            "condition": (
+                "Seven-day peak site power is at least "
+                f"{PEAK_DEMAND_RATIO:.1f} times the seven-day average and at "
+                f"least {PEAK_DEMAND_MINIMUM_W:,.0f} W."
+            ),
+        },
         "evidence": [
             _sensor_evidence(
-                label="Latest DHW demand",
+                label="Seven-day peak demand",
                 sensor=sensor,
-                reading=reading,
-            ),
-            _derived_evidence(
-                label="Recent median baseline",
-                value=float(baseline_kw),
-                unit=sensor.display_unit or "kW",
-                note=(
-                    f"Median of the latest {len(recent_values)} available "
-                    "readings."
+                value=_round(peak_w),
+                unit="W",
+                timestamp=peak_timestamp,
+                comparison=f"Trigger: {effective_threshold_w:,.0f} W",
+                details=(
+                    "Peak positive consumption magnitude from the confirmed "
+                    "site power point."
                 ),
             ),
-            _derived_evidence(
-                label="Latest-to-baseline ratio",
-                value=float(ratio),
-                unit="x",
+            _sensor_evidence(
+                label="Seven-day average demand",
+                sensor=sensor,
+                value=_round(average_w),
+                unit="W",
+                timestamp=latest_timestamp,
+                comparison=f"Peak/average ratio: {peak_w / average_w:.2f}",
+                details=f"Calculated from {len(window_values)} recent readings.",
             ),
-            _derived_evidence(
-                label="Rule ratio threshold",
-                value=DHW_SPIKE_RATIO,
-                unit="x",
-            ),
-        ],
-        "limitations": [
-            "A high value may be expected during scheduled recovery or heavy use.",
-            "The rule detects an anomaly but does not diagnose its cause.",
         ],
     }
+    return recommendation, evaluation, None
 
 
-def _weather_aware_hvac_rule(
-    db: Session,
-    weather: dict[str, Any] | None,
-) -> dict[str, Any] | None:
-    if not weather:
+def _latest_ambient_snapshot(db: Session) -> dict[str, Any] | None:
+    sensors = (
+        db.query(SensorPoint)
+        .filter(SensorPoint.sensor_code.in_(INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES))
+        .all()
+    )
+    if not sensors:
         return None
 
-    daily = weather.get("daily") or []
-    if not daily:
+    sensor_by_id = {sensor.sensor_point_id: sensor for sensor in sensors}
+    sensor_ids = list(sensor_by_id)
+    latest_timestamp = (
+        db.query(func.max(SensorReading.reading_time))
+        .filter(SensorReading.sensor_point_id.in_(sensor_ids))
+        .scalar()
+    )
+    if latest_timestamp is None:
         return None
 
-    forecast_day = daily[0]
-    maximum_temperature = forecast_day.get("maximumTemperatureC")
-    if maximum_temperature is None:
+    window_start = latest_timestamp - timedelta(hours=1)
+    recent_readings = (
+        db.query(SensorReading)
+        .filter(
+            SensorReading.sensor_point_id.in_(sensor_ids),
+            SensorReading.reading_time >= window_start,
+            SensorReading.reading_time <= latest_timestamp,
+        )
+        .order_by(SensorReading.reading_time.asc())
+        .all()
+    )
+
+    latest_by_sensor: dict[int, SensorReading] = {}
+    for reading in recent_readings:
+        latest_by_sensor[reading.sensor_point_id] = reading
+
+    values: list[float] = []
+    source_codes: list[str] = []
+    representative_sensor: SensorPoint | None = None
+    for sensor_id, reading in latest_by_sensor.items():
+        sensor = sensor_by_id[sensor_id]
+        value = scale_value(sensor, reading.value)
+        if value is None or not 5.0 <= value <= 40.0:
+            continue
+        values.append(float(value))
+        source_codes.append(sensor.sensor_code)
+        if representative_sensor is None:
+            representative_sensor = sensor
+
+    if not values or representative_sensor is None:
         return None
 
-    hvac_sensor = _load_sensor(db, HVAC_CONSUMPTION_SENSOR_CODE)
-    site_sensor = _load_sensor(db, SITE_CONSUMPTION_SENSOR_CODE)
-    hvac_reading = _latest_reading(db, hvac_sensor)
-    site_reading = _latest_reading(db, site_sensor)
-
-    if (
-        hvac_sensor is None
-        or site_sensor is None
-        or hvac_reading is None
-        or site_reading is None
-    ):
-        return None
-
-    hvac_kw = scale_value(hvac_sensor, hvac_reading.value)
-    signed_site_kw = scale_value(site_sensor, site_reading.value)
-    if hvac_kw is None or signed_site_kw is None:
-        return None
-
-    site_magnitude_kw = abs(signed_site_kw)
-    if site_magnitude_kw <= 0:
-        return None
-
-    hvac_share = hvac_kw / site_magnitude_kw
-    if not (
-        maximum_temperature >= WARM_WEATHER_THRESHOLD_C
-        and hvac_kw >= HVAC_MINIMUM_TRIGGER_KW
-        and hvac_share >= HVAC_SITE_SHARE_THRESHOLD
-    ):
-        return None
-
-    generated_at = _utc_now()
     return {
-        "recommendationId": "weather-aware-hvac-plan",
-        "recommendationVersion": _daily_version(generated_at),
-        "ruleId": "R3_WEATHER_AWARE_HVAC",
-        "category": "HVAC",
-        "priority": "Medium",
-        "title": "Prepare a warm-weather HVAC operating plan",
-        "description": (
-            "The live forecast is warm and the latest historical snapshot shows "
-            "a meaningful HVAC share of site demand. Review pre-cooling, "
-            "setpoints, and peak-period scheduling with the operator."
-        ),
-        "recommendedAction": (
-            "Before the warmest period, verify occupied-zone setpoints and "
-            "consider shifting safe cooling activity away from the expected "
-            "peak. Do not write changes to the BMS without operator approval."
-        ),
-        "reason": (
-            f"The forecast maximum is {_round(float(maximum_temperature))} °C. "
-            f"HVAC demand is {_round(hvac_kw)} kW, or "
-            f"{_round(hvac_share * 100)}% of the interpreted site-load magnitude."
-        ),
-        "status": "pending",
-        "evidence": [
-            _sensor_evidence(
-                label="HVAC demand",
-                sensor=hvac_sensor,
-                reading=hvac_reading,
-            ),
-            _sensor_evidence(
-                label="Signed site-consumption reading",
-                sensor=site_sensor,
-                reading=site_reading,
-                note=(
-                    "The original sign is preserved. Only the magnitude is used "
-                    "for the share calculation because the source sign "
-                    "convention still requires client confirmation."
-                ),
-            ),
-            _derived_evidence(
-                label="Interpreted site-load magnitude",
-                value=float(site_magnitude_kw),
-                unit=site_sensor.display_unit or "kW",
-            ),
-            _derived_evidence(
-                label="HVAC share of site-load magnitude",
-                value=float(hvac_share * 100),
-                unit="%",
-            ),
-            _external_evidence(
-                label="Forecast maximum outdoor temperature",
-                value=float(maximum_temperature),
-                unit="°C",
-                timestamp=forecast_day.get("date"),
-                source=weather.get("source", "External weather provider"),
-                note=weather.get("location"),
-            ),
-        ],
-        "limitations": [
-            "The sensor snapshot is historical while the weather forecast is live.",
-            "This is a planning prompt, not proof that current HVAC operation is inefficient.",
-        ],
+        "averageTemperatureC": sum(values) / len(values),
+        "timestamp": latest_timestamp,
+        "sensorCount": len(values),
+        "sourceCodes": sorted(source_codes),
+        "representativeSensor": representative_sensor,
     }
 
 
-def generate_recommendations(db: Session) -> dict[str, Any]:
-    """Evaluate all Phase 5 rules and return only triggered recommendations."""
-    generated_at = _utc_now()
-    warnings: list[str] = []
+def _evaluate_weather_economizer(
+    db: Session,
+    weather_loader: Callable[[], dict[str, Any]],
+) -> tuple[dict[str, Any] | None, dict[str, Any], str | None]:
+    rule_id = "weather-economizer"
+    rule_name = "Cool-outdoor-air opportunity"
+    indoor = _latest_ambient_snapshot(db)
+
+    if indoor is None:
+        summary = "Skipped because no recent indoor ambient-temperature snapshot was available."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
 
     try:
-        weather = get_weather_forecast()
-        external_data_status = (
-            "stale" if weather.get("isStale") else "available"
-        )
-    except WeatherProviderError:
-        weather = None
-        external_data_status = "unavailable"
-        warnings.append(
-            "The weather provider was unavailable, so the weather-aware HVAC "
-            "rule was skipped."
-        )
+        weather = weather_loader()
+    except WeatherProviderError as error:
+        summary = f"Skipped because weather data was unavailable: {error}"
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
 
-    rules = [
-        _after_hours_lighting_rule(db),
-        _dhw_baseline_rule(db),
-        _weather_aware_hvac_rule(db, weather),
-    ]
-    recommendations = [rule for rule in rules if rule is not None]
+    current = weather.get("current") or {}
+    outdoor_c = current.get("temperatureC")
+    if outdoor_c is None:
+        summary = "Skipped because the weather response did not include outdoor temperature."
+        return None, {
+            "ruleId": rule_id,
+            "ruleName": rule_name,
+            "triggered": False,
+            "summary": summary,
+        }, summary
 
-    source_timestamps = [
-        evidence.get("timestamp")
-        for recommendation in recommendations
-        for evidence in recommendation["evidence"]
-        if evidence.get("sourceType") == "sensor"
-        and isinstance(evidence.get("timestamp"), datetime)
+    indoor_c = float(indoor["averageTemperatureC"])
+    outdoor_c = float(outdoor_c)
+    difference_c = indoor_c - outdoor_c
+    triggered = (
+        indoor_c >= ECONOMIZER_MIN_INDOOR_C
+        and outdoor_c >= ECONOMIZER_MIN_OUTDOOR_C
+        and difference_c >= ECONOMIZER_TEMPERATURE_DIFFERENCE_C
+    )
+
+    summary = (
+        f"Indoor ambient average was {_round(indoor_c):.1f} °C and current "
+        f"outdoor temperature was {_round(outdoor_c):.1f} °C, a "
+        f"{_round(difference_c):.1f} °C difference."
+    )
+    evaluation = {
+        "ruleId": rule_id,
+        "ruleName": rule_name,
+        "triggered": triggered,
+        "summary": summary,
+    }
+    if not triggered:
+        return None, evaluation, None
+
+    weather_timestamp = (
+        weather.get("retrievedAt")
+        or weather.get("providerRetrievedAt")
+        or weather.get("servedAt")
+    )
+    representative_sensor: SensorPoint = indoor["representativeSensor"]
+
+    recommendation = {
+        "recommendationId": "evaluate-economizer-cooling",
+        "recommendationVersion": int(datetime.now(timezone.utc).strftime("%Y%m%d")),
+        "category": "HVAC",
+        "title": "Evaluate economizer or free cooling",
+        "description": (
+            "Before mechanical cooling is increased, verify live conditions "
+            "and consider using cooler outdoor air where the HVAC system and "
+            "ventilation requirements permit it. Operator approval is required."
+        ),
+        "reason": (
+            f"The latest imported indoor ambient average was "
+            f"{_round(indoor_c):.1f} °C while Open-Meteo reported "
+            f"{_round(outdoor_c):.1f} °C outdoors, a difference of "
+            f"{_round(difference_c):.1f} °C."
+        ),
+        "priority": "Medium",
+        "status": "triggered",
+        "rule": {
+            "ruleId": rule_id,
+            "condition": (
+                f"Indoor average >= {ECONOMIZER_MIN_INDOOR_C:.1f} °C, outdoor "
+                f">= {ECONOMIZER_MIN_OUTDOOR_C:.1f} °C, and outdoor air is at "
+                f"least {ECONOMIZER_TEMPERATURE_DIFFERENCE_C:.1f} °C cooler."
+            ),
+        },
+        "evidence": [
+            _sensor_evidence(
+                label="Indoor ambient average",
+                sensor=representative_sensor,
+                value=_round(indoor_c),
+                unit="°C",
+                timestamp=indoor["timestamp"],
+                comparison=(
+                    f"Minimum indoor trigger: {ECONOMIZER_MIN_INDOOR_C:.1f} °C"
+                ),
+                details=(
+                    f"Average of {indoor['sensorCount']} ambient sensors with "
+                    "plausible readings in the latest one-hour sensor window."
+                ),
+                source_codes=indoor["sourceCodes"],
+            ),
+            _external_evidence(
+                label="Current outdoor temperature",
+                source_name=weather.get("source", "Weather provider"),
+                value=_round(outdoor_c),
+                unit="°C",
+                timestamp=weather_timestamp,
+                comparison=f"Indoor-outdoor difference: {difference_c:.1f} °C",
+                details=(
+                    f"External weather value for {weather.get('location', 'the configured location')}."
+                ),
+            ),
+        ],
+    }
+    return recommendation, evaluation, None
+
+
+def evaluate_recommendations(
+    db: Session,
+    weather_loader: Callable[[], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Evaluate all Phase 5 rules and return explainable active results."""
+    if weather_loader is None:
+        weather_loader = get_weather_forecast
+
+    power_sensor, power_readings = _load_site_power(db)
+    recommendations: list[dict[str, Any]] = []
+    evaluations: list[dict[str, Any]] = []
+    skipped_rules: list[dict[str, str]] = []
+
+    rule_results = [
+        _evaluate_overnight_baseload(power_sensor, power_readings),
+        _evaluate_peak_demand(power_sensor, power_readings),
+        _evaluate_weather_economizer(db, weather_loader),
     ]
+
+    for recommendation, evaluation, skipped_reason in rule_results:
+        evaluations.append(evaluation)
+        if recommendation is not None:
+            recommendations.append(recommendation)
+        if skipped_reason:
+            skipped_rules.append(
+                {
+                    "ruleId": evaluation["ruleId"],
+                    "reason": skipped_reason,
+                }
+            )
+
+    priority_order = {"High": 0, "Medium": 1, "Low": 2}
+    recommendations.sort(
+        key=lambda item: (
+            priority_order.get(item["priority"], 9),
+            item["title"],
+        )
+    )
 
     return {
-        "generatedAt": generated_at,
-        "datasetType": "historical",
-        "datasetLatestTimestamp": max(source_timestamps)
-        if source_timestamps
-        else None,
-        "externalDataStatus": external_data_status,
-        "evaluatedRuleCount": 3,
+        "datasetType": "historical-plus-current-external",
+        "generatedAt": datetime.now(timezone.utc),
+        "rulesEvaluated": len(evaluations),
         "recommendationCount": len(recommendations),
-        "warnings": warnings,
+        "dataNotice": (
+            "Sensor evidence comes from the latest imported historical data. "
+            "Weather evidence is current external data. Recommendations are "
+            "decision support only and require operator verification and approval."
+        ),
         "recommendations": recommendations,
+        "evaluations": evaluations,
+        "skippedRules": skipped_rules,
     }

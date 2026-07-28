@@ -18,21 +18,8 @@ const offlineSensors = document.getElementById('offlineSensors');
 const activeAlerts = document.getElementById('activeAlerts');
 const currentUser = document.getElementById('currentUser');
 const currentYear = document.getElementById('currentYear');
-const recommendationList = document.getElementById('recommendationList');
-const recommendationCount = document.getElementById('recommendationCount');
 let captchaSolution = null;
-let activeRecommendationDialog = null;
 
-const recommendations = [
-  { id: 'peak-demand', category: 'Demand', title: 'Peak demand reduction', description: 'Reduce HVAC cooling load between 4:00 p.m. and 6:00 p.m. to avoid peak electricity charges.', reason: 'Electricity pricing is expected to be high during peak hours.', savings: 85, priority: 'High' },
-  { id: 'pre-cooling', category: 'HVAC', title: 'Pre-cooling strategy', description: 'Pre-cool the building before peak demand hours.', reason: 'Weather forecast shows high outdoor temperature later today.', savings: 120, priority: 'Medium' },
-  { id: 'ventilation', category: 'Air quality', title: 'Ventilation optimization', description: 'Reduce ventilation slightly during low occupancy hours.', reason: 'Occupancy is low during these hours, so ventilation can be reduced cautiously.', savings: 60, priority: 'Low' },
-  { id: 'setpoint', category: 'HVAC', title: 'Setpoint adjustment', description: 'Increase cooling setpoint from 21 C to 22 C.', reason: 'Small setpoint changes can reduce HVAC energy use while maintaining comfort.', savings: 75, priority: 'Medium' },
-  { id: 'lighting', category: 'Lighting', title: 'After-hours lighting schedule', description: 'Turn off nonessential lighting on levels 3 and 4 after 8:00 p.m.', reason: 'Occupancy data shows these floors are usually empty after business hours.', savings: 48, priority: 'Medium' },
-  { id: 'equipment', category: 'Equipment', title: 'Stagger equipment start-up', description: 'Delay selected pumps and air handlers by 10-minute intervals during morning start-up.', reason: 'Simultaneous equipment start-up creates a short demand spike.', savings: 95, priority: 'High' },
-  { id: 'economizer', category: 'HVAC', title: 'Enable economizer cooling', description: 'Use cooler outdoor air for morning cooling before mechanical chillers start.', reason: 'Outdoor temperature is below the indoor cooling target until 9:00 a.m.', savings: 105, priority: 'High' },
-  { id: 'standby', category: 'Plug loads', title: 'Reduce standby loads', description: 'Power down idle meeting-room displays and shared equipment overnight.', reason: 'Standby consumption remains above the overnight baseline.', savings: 35, priority: 'Low' },
-];
 
 let buildingSensors = [];
 
@@ -351,110 +338,6 @@ function initializeSensorChart() {
 }
 
 initializeSensorChart();
-
-function renderRecommendations() {
-  if (!recommendationList) return;
-  recommendationList.innerHTML = recommendations.map((recommendation) => `
-    <article class="recommendation-card" data-recommendation-id="${recommendation.id}">
-      <div class="recommendation-main">
-        <div>
-          <span class="recommendation-category">${recommendation.category}</span>
-          <h3>${recommendation.title}</h3>
-        </div>
-        <span class="priority priority-${recommendation.priority.toLowerCase()}">${recommendation.priority}</span>
-      </div>
-      <p class="recommendation-reason"><strong>Reason:</strong> ${recommendation.reason}</p>
-      <div class="recommendation-meta">
-        <span>Status: <strong class="recommendation-status status-pending">Pending review</strong></span>
-      </div>
-      <div class="recommendation-actions">
-        <button type="button" class="btn recommendation-approve recommendation-action" data-action="approved">Approve</button>
-        <button type="button" class="btn recommendation-reject recommendation-action" data-action="rejected">Reject</button>
-      </div>
-    </article>
-  `).join('');
-
-  if (recommendationCount) recommendationCount.textContent = recommendations.length;
-}
-
-renderRecommendations();
-
-function showRecommendationDialog({ title, message, confirmText = 'OK', cancelText = null, type = 'info' }) {
-  if (activeRecommendationDialog) {
-    activeRecommendationDialog.remove();
-    activeRecommendationDialog = null;
-  }
-
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'app-dialog-overlay';
-    overlay.innerHTML = `
-      <div class="app-dialog app-dialog-${type}" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" aria-describedby="appDialogMessage">
-        <div class="app-dialog-icon" aria-hidden="true">${type === 'success' || type === 'reject-success' ? '&#10003;' : '!'}</div>
-        <h2 id="appDialogTitle">${title}</h2>
-        <p id="appDialogMessage">${message}</p>
-        <div class="app-dialog-actions">
-          ${cancelText ? `<button type="button" class="btn app-dialog-cancel">${cancelText}</button>` : ''}
-          <button type="button" class="btn app-dialog-confirm">${confirmText}</button>
-        </div>
-      </div>
-    `;
-
-    const closeDialog = (result) => {
-      overlay.remove();
-      activeRecommendationDialog = null;
-      resolve(result);
-    };
-
-    overlay.querySelector('.app-dialog-confirm').addEventListener('click', () => closeDialog(true));
-    const cancelButton = overlay.querySelector('.app-dialog-cancel');
-    if (cancelButton) {
-      cancelButton.addEventListener('click', () => closeDialog(false));
-    }
-    overlay.addEventListener('click', (event) => {
-      if (event.target === overlay && cancelText) closeDialog(false);
-    });
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeDialog(false);
-    });
-
-    document.body.appendChild(overlay);
-    activeRecommendationDialog = overlay;
-    overlay.querySelector('.app-dialog-confirm').focus();
-  });
-}
-
-if (recommendationList) {
-  recommendationList.addEventListener('click', async (event) => {
-    const button = event.target.closest('.recommendation-action');
-    if (!button) return;
-    const card = button.closest('.recommendation-card');
-    const status = card.querySelector('.recommendation-status');
-    const isApproved = button.dataset.action === 'approved';
-    const actionLabel = isApproved ? 'approve' : 'reject';
-    const confirmed = await showRecommendationDialog({
-      title: isApproved ? 'Approve recommendation?' : 'Reject recommendation?',
-      message: `Are you sure you want to ${actionLabel} this recommendation?`,
-      confirmText: isApproved ? 'Approve' : 'Reject',
-      cancelText: 'Cancel',
-      type: isApproved ? 'approve' : 'reject',
-    });
-
-    if (!confirmed) return;
-
-    status.textContent = isApproved ? 'Approved' : 'Rejected';
-    status.className = `recommendation-status ${isApproved ? 'status-approved' : 'status-rejected'}`;
-    card.querySelectorAll('.recommendation-action').forEach((actionButton) => {
-      actionButton.setAttribute('aria-pressed', String(actionButton === button));
-    });
-    await showRecommendationDialog({
-      title: 'Success',
-      message: `This recommendation has been ${isApproved ? 'approved' : 'rejected'} successfully.`,
-      confirmText: 'OK',
-      type: isApproved ? 'success' : 'reject-success',
-    });
-  });
-}
 
 if (sensorSearch) {
   updateSensorSummary();
