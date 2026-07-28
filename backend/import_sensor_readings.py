@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy.dialects.postgresql import insert
 
+from backend.app.cache_service import cache
 from backend.app.database import SessionLocal
 from backend.app.models import SensorPoint, SensorReading
 
@@ -183,6 +184,8 @@ def main():
         print(f"Rows prepared: {total_prepared:,}")
         print(f"Rows inserted: {total_inserted:,}")
         print(f"Extreme/sentinel values skipped: {rejected_extreme_values:,}")
+        deleted_keys = cache.clear_namespace()
+        print(f"Cleared {deleted_keys} cached dashboard response(s).")
 
     except Exception as error:
         db.rollback()

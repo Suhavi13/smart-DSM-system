@@ -297,12 +297,24 @@ async function loadConditionsChart() {
 }
 
 function buildSiteConsumptionReadingsPath() {
-  return buildSensorReadingsPath({
-    sensorCode: SITE_CONSUMPTION_SENSOR_CODE,
-    startInputId: "chartStartDate",
-    endInputId: "chartEndDate",
-    intervalInputId: "chartInterval"
+  const startDate = document.getElementById("chartStartDate")?.value;
+  const endDate = document.getElementById("chartEndDate")?.value;
+  const interval =
+    document.getElementById("chartInterval")?.value || "hour";
+  const parameters = new URLSearchParams({
+    interval,
+    limit: "500"
   });
+
+  if (startDate) {
+    parameters.set("start", `${startDate}T00:00:00`);
+  }
+
+  if (endDate) {
+    parameters.set("end", `${endDate}T23:59:59`);
+  }
+
+  return `/dashboard/site-consumption?${parameters.toString()}`;
 }
 
 async function loadSiteConsumptionChart() {
@@ -447,6 +459,49 @@ async function loadWeatherForecastChart() {
     const data = await apiGet("/external/weather/forecast");
     const today = data.daily[0] || {};
 
+    const summaryTemperature = document.getElementById(
+      "summaryOutdoorTemperature"
+    );
+    const summaryHumidity = document.getElementById(
+      "summaryOutdoorHumidity"
+    );
+    const summaryCondition = document.getElementById(
+      "summaryOutdoorCondition"
+    );
+    const summaryCacheStatus = document.getElementById(
+      "summaryWeatherCacheStatus"
+    );
+
+    if (summaryTemperature) {
+      summaryTemperature.textContent = formatValueWithUnit(
+        data.current.temperatureC,
+        "°C"
+      );
+    }
+
+    if (summaryHumidity) {
+      summaryHumidity.textContent = formatValueWithUnit(
+        data.current.humidityPercent,
+        "%"
+      );
+    }
+
+    if (summaryCondition) {
+      summaryCondition.textContent =
+        data.current.condition || "Unknown conditions";
+    }
+
+    if (summaryCacheStatus) {
+      summaryCacheStatus.textContent = data.isStale
+        ? "Last successful forecast (stale)"
+        : data.cacheStatus === "hit"
+          ? "Served from Redis cache"
+          : data.cacheStatus === "miss"
+            ? "Fresh from Open-Meteo"
+            : "Live provider response";
+      summaryCacheStatus.classList.toggle("warning-text", data.isStale);
+    }
+
     document.getElementById("weatherSymbol").textContent =
       weatherSymbolForCode(data.current.weatherCode);
     document.getElementById("weatherCurrentTemperature").textContent =
@@ -545,7 +600,16 @@ async function loadWeatherForecastChart() {
     });
 
     if (statusElement) {
-      statusElement.textContent = "Updated";
+      const cacheLabel =
+        data.cacheStatus === "hit"
+          ? "Redis cache"
+          : data.cacheStatus === "stale"
+            ? "Stale fallback"
+            : data.cacheStatus === "miss"
+              ? "Fresh"
+              : "Live";
+      statusElement.textContent = cacheLabel;
+      statusElement.classList.toggle("warning-text", Boolean(data.isStale));
     }
   } catch (error) {
     console.error("Could not load weather forecast:", error);

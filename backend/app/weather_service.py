@@ -1,18 +1,24 @@
-"""Weather provider integration for the dashboard.
+"""Open-Meteo integration and Redis-backed weather caching.
 
-The frontend calls the GBTAC backend instead of calling a third-party API
-itself. This keeps provider configuration on the server and gives the
-frontend a stable response shape if the provider changes later.
+The browser calls the GBTAC backend, never the provider directly. Provider
+payloads are normalized into a stable application-owned contract so a future
+weather provider can be substituted without rewriting the dashboard.
 """
 
 from __future__ import annotations
 
 import os
-import threading
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
+
+from .cache_service import cache
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 class WeatherProviderError(RuntimeError):
@@ -35,15 +41,19 @@ WEATHER_TIMEZONE = os.getenv(
 WEATHER_CACHE_SECONDS = max(
     60, int(os.getenv("WEATHER_CACHE_SECONDS", "600"))
 )
+WEATHER_STALE_CACHE_SECONDS = max(
+    WEATHER_CACHE_SECONDS,
+    int(os.getenv("WEATHER_STALE_CACHE_SECONDS", "21600")),
+)
 WEATHER_REQUEST_TIMEOUT_SECONDS = max(
     1.0, float(os.getenv("WEATHER_REQUEST_TIMEOUT_SECONDS", "8"))
 )
+WEATHER_MAX_ATTEMPTS = min(
+    3, max(1, int(os.getenv("WEATHER_MAX_ATTEMPTS", "2")))
+)
 
-_cache_lock = threading.Lock()
-_weather_cache: dict[str, Any] = {
-    "expires_at": 0.0,
-    "payload": None,
-}
+WEATHER_CACHE_KEY = "external:weather:forecast"
+WEATHER_STALE_CACHE_KEY = "external:weather:forecast:last-success"
 
 
 WMO_CONDITIONS = {
@@ -78,6 +88,10 @@ WMO_CONDITIONS = {
 }
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def describe_weather_code(code: int | None) -> str:
     if code is None:
         return "Unknown"
@@ -96,7 +110,7 @@ def _required_sequence(
 
 
 def normalize_weather_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Convert the provider payload into the GBTAC dashboard contract."""
+    """Convert Open-Meteo data into the application-owned weather contract."""
     current = payload.get("current")
     daily = payload.get("daily")
 
@@ -126,11 +140,11 @@ def normalize_weather_payload(payload: dict[str, Any]) -> dict[str, Any]:
         )
 
     daily_items = []
-    for index, date in enumerate(dates):
+    for index, forecast_date in enumerate(dates):
         code = weather_codes[index]
         daily_items.append(
             {
-                "date": date,
+                "date": forecast_date,
                 "maximumTemperatureC": maximums[index],
                 "minimumTemperatureC": minimums[index],
                 "precipitationProbabilityPercent": precipitation[index],
@@ -143,12 +157,21 @@ def normalize_weather_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "location": WEATHER_LOCATION_NAME,
-        "latitude": payload.get("latitude", WEATHER_LATITUDE),
-        "longitude": payload.get("longitude", WEATHER_LONGITUDE),
+        "latitude": float(
+            payload.get("latitude", WEATHER_LATITUDE)
+        ),
+        "longitude": float(
+            payload.get("longitude", WEATHER_LONGITUDE)
+        ),
         "timezone": payload.get("timezone", WEATHER_TIMEZONE),
         "source": "Open-Meteo",
         "sourceUrl": "https://open-meteo.com/",
-        "retrievedAt": current.get("time"),
+        "providerRetrievedAt": current.get("time"),
+        "units": {
+            "temperature": "°C",
+            "humidity": "%",
+            "precipitationProbability": "%",
+        },
         "current": {
             "temperatureC": current.get("temperature_2m"),
             "humidityPercent": current.get("relative_humidity_2m"),
@@ -181,50 +204,111 @@ def _provider_parameters() -> dict[str, Any]:
 
 
 def fetch_weather_forecast() -> dict[str, Any]:
-    """Fetch and normalize a forecast from the configured provider."""
+    """Fetch, validate, and normalize the configured weather provider."""
+    last_error: Exception | None = None
+
+    for attempt in range(1, WEATHER_MAX_ATTEMPTS + 1):
+        try:
+            response = httpx.get(
+                WEATHER_API_BASE_URL,
+                params=_provider_parameters(),
+                timeout=WEATHER_REQUEST_TIMEOUT_SECONDS,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "GBTAC-Dashboard/0.4.0",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+            if not isinstance(payload, dict):
+                raise WeatherProviderError(
+                    "Weather provider returned an unexpected response."
+                )
+
+            return normalize_weather_payload(payload)
+        except (
+            httpx.HTTPError,
+            ValueError,
+            WeatherProviderError,
+        ) as error:
+            last_error = error
+            if attempt < WEATHER_MAX_ATTEMPTS:
+                time.sleep(0.25 * (2 ** (attempt - 1)))
+
+    raise WeatherProviderError(
+        "Weather provider could not be reached or returned invalid data."
+    ) from last_error
+
+
+def _with_cache_metadata(
+    payload: dict[str, Any],
+    *,
+    cache_status: str,
+    is_stale: bool,
+    cache_ttl_seconds: int | None,
+) -> dict[str, Any]:
+    return {
+        **payload,
+        "retrievedAt": payload.get("providerRetrievedAt"),
+        "servedAt": _utc_now_iso(),
+        "cacheStatus": cache_status,
+        "cacheTtlSeconds": cache_ttl_seconds,
+        "isStale": is_stale,
+    }
+
+
+def get_weather_forecast(
+    *,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    """Return fresh Redis data, fetch on miss, or stale data on provider failure."""
+    if not force_refresh:
+        cached_payload = cache.get_json(WEATHER_CACHE_KEY)
+        if isinstance(cached_payload, dict):
+            return _with_cache_metadata(
+                cached_payload,
+                cache_status="hit",
+                is_stale=False,
+                cache_ttl_seconds=cache.ttl(WEATHER_CACHE_KEY),
+            )
+
     try:
-        response = httpx.get(
-            WEATHER_API_BASE_URL,
-            params=_provider_parameters(),
-            timeout=WEATHER_REQUEST_TIMEOUT_SECONDS,
-            headers={"User-Agent": "GBTAC-Dashboard/0.2.2"},
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except (httpx.HTTPError, ValueError) as error:
-        raise WeatherProviderError(
-            "Weather provider could not be reached or returned invalid data."
-        ) from error
+        payload = fetch_weather_forecast()
+    except WeatherProviderError:
+        stale_payload = cache.get_json(WEATHER_STALE_CACHE_KEY)
+        if isinstance(stale_payload, dict):
+            return _with_cache_metadata(
+                stale_payload,
+                cache_status="stale",
+                is_stale=True,
+                cache_ttl_seconds=cache.ttl(
+                    WEATHER_STALE_CACHE_KEY
+                ),
+            )
+        raise
 
-    if not isinstance(payload, dict):
-        raise WeatherProviderError(
-            "Weather provider returned an unexpected response."
-        )
+    fresh_cached = cache.set_json(
+        WEATHER_CACHE_KEY,
+        payload,
+        WEATHER_CACHE_SECONDS,
+    )
+    cache.set_json(
+        WEATHER_STALE_CACHE_KEY,
+        payload,
+        WEATHER_STALE_CACHE_SECONDS,
+    )
 
-    return normalize_weather_payload(payload)
-
-
-def get_weather_forecast() -> dict[str, Any]:
-    """Return a short-lived cached forecast to avoid one API call per viewer."""
-    now = time.monotonic()
-
-    with _cache_lock:
-        cached_payload = _weather_cache.get("payload")
-        expires_at = float(_weather_cache.get("expires_at") or 0.0)
-        if cached_payload is not None and now < expires_at:
-            return cached_payload
-
-    payload = fetch_weather_forecast()
-
-    with _cache_lock:
-        _weather_cache["payload"] = payload
-        _weather_cache["expires_at"] = now + WEATHER_CACHE_SECONDS
-
-    return payload
+    return _with_cache_metadata(
+        payload,
+        cache_status="miss" if fresh_cached else "bypass",
+        is_stale=False,
+        cache_ttl_seconds=(
+            WEATHER_CACHE_SECONDS if fresh_cached else None
+        ),
+    )
 
 
 def clear_weather_cache() -> None:
-    """Clear the cache for tests and controlled operational refreshes."""
-    with _cache_lock:
-        _weather_cache["payload"] = None
-        _weather_cache["expires_at"] = 0.0
+    cache.delete(WEATHER_CACHE_KEY)
+    cache.delete(WEATHER_STALE_CACHE_KEY)

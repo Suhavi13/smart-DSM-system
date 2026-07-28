@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from backend.app.cache_service import cache
 from backend.app.database import SessionLocal
 from backend.app.models import SensorPoint
 from backend.app.sensor_metadata import get_sensor_metadata
@@ -120,6 +121,8 @@ def main():
             "Naming-derived units remain provisional unless a sensor has a "
             "confirmed override in backend/app/sensor_metadata.py."
         )
+        deleted_keys = cache.clear_namespace()
+        print(f"Cleared {deleted_keys} cached dashboard response(s).")
 
     except Exception as error:
         db.rollback()

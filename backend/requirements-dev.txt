@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest
 httpx
+fakeredis>=2.23,<3.0

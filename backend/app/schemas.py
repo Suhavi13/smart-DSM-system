@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field 
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SensorBase(BaseModel):
@@ -114,6 +114,12 @@ class WeatherDayResponse(BaseModel):
     condition: str
 
 
+class WeatherUnitsResponse(BaseModel):
+    temperature: str = "°C"
+    humidity: str = "%"
+    precipitationProbability: str = "%"
+
+
 class WeatherForecastResponse(BaseModel):
     location: str
     latitude: float
@@ -121,7 +127,13 @@ class WeatherForecastResponse(BaseModel):
     timezone: str
     source: str
     sourceUrl: str
+    providerRetrievedAt: Optional[str] = None
     retrievedAt: Optional[str] = None
+    servedAt: str
+    cacheStatus: str
+    cacheTtlSeconds: Optional[int] = None
+    isStale: bool = False
+    units: WeatherUnitsResponse
     current: WeatherCurrentResponse
     daily: list[WeatherDayResponse]
 
@@ -185,12 +197,26 @@ class DecisionResponse(BaseModel):
     )
 
     decision_id: int = Field(alias="decisionId")
-    recommendation_id: str = Field(alias="recommendationId")
-    recommendation_version: int = Field(alias="recommendationVersion")
+
+    recommendation_id: str = Field(
+        alias="recommendationId"
+    )
+
+    recommendation_version: int = Field(
+        alias="recommendationVersion"
+    )
+
     action: str
     comment: str | None
-    operator_label: str = Field(alias="operatorLabel")
+
+    operator_label: str = Field(
+        alias="operatorLabel"
+    )
+
     recommendation_snapshot: dict[str, Any] = Field(
         alias="recommendationSnapshot"
     )
-    created_at: datetime = Field(alias="createdAt")
+
+    created_at: datetime = Field(
+        alias="createdAt"
+    )

@@ -1,11 +1,13 @@
 from datetime import datetime
+import os
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
+from .cache_service import cache
 from .dashboard_sensors import (
     INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES,
     INDOOR_CO2_SENSOR_CODE,
@@ -33,17 +35,20 @@ from .weather_service import (
 
 from .routers.decisions import router as decisions_router
 
+
+
 ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 app = FastAPI(
     title="GBTAC Sensor Data Service",
-    version="0.2.3",
+    version="0.4.0",
     description=(
         "Read-only API for the full historical GBTAC sensor inventory, "
-        "latest values, date-filtered readings, chart aggregation, and "
-        "weather forecast integration."
+        "Redis-cached dashboard aggregation, and normalized external "
+        "weather data."
     ),
 )
+
 app.include_router(decisions_router)
 
 app.add_middleware(
@@ -56,9 +61,20 @@ app.add_middleware(
     ],
     allow_credentials=False,
     allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Decision-Key",
-    "Idempotency-Key"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["X-Cache"],
 )
+
+DASHBOARD_OVERVIEW_CACHE_SECONDS = max(
+    10, int(os.getenv("DASHBOARD_OVERVIEW_CACHE_SECONDS", "60"))
+)
+DASHBOARD_CHART_CACHE_SECONDS = max(
+    30, int(os.getenv("DASHBOARD_CHART_CACHE_SECONDS", "300"))
+)
+SITE_CONSUMPTION_SENSOR_CODE = os.getenv(
+    "SITE_CONSUMPTION_SENSOR_CODE", "30000_TL342"
+).strip()
+
 
 
 def serialize_sensor(
@@ -131,11 +147,24 @@ def inventory_sensor_latest_rows(db: Session):
 
 @app.get("/health")
 def health_check():
+    redis_available = cache.ping()
     return {
         "status": "ok",
-        "service": "GBTAC Sensor Data Service",
-        "version": "0.2.3",
+        "service": "GBTAC Sensor Data and Integration Service",
+        "version": "0.4.0",
         "datasetType": "historical",
+        "externalApi": "Open-Meteo",
+        "cache": {
+            "enabled": cache.enabled,
+            "provider": "Redis",
+            "status": (
+                "connected"
+                if redis_available
+                else "unavailable"
+                if cache.enabled
+                else "disabled"
+            ),
+        },
     }
 
 
@@ -143,9 +172,11 @@ def health_check():
     "/api/v1/external/weather/forecast",
     response_model=WeatherForecastResponse,
 )
-def get_weather_dashboard_forecast():
+def get_weather_dashboard_forecast(response: Response):
     try:
-        return get_weather_forecast()
+        payload = get_weather_forecast()
+        response.headers["X-Cache"] = payload["cacheStatus"].upper()
+        return payload
     except WeatherProviderError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
@@ -293,10 +324,64 @@ def get_sensor_readings(
 
 
 @app.get(
+    "/api/v1/dashboard/site-consumption",
+    response_model=SensorReadingsResponse,
+)
+def get_dashboard_site_consumption(
+    response: Response,
+    start: datetime | None = Query(
+        default=None,
+        description="Inclusive start timestamp in ISO-8601 format.",
+    ),
+    end: datetime | None = Query(
+        default=None,
+        description="Inclusive end timestamp in ISO-8601 format.",
+    ),
+    interval: ReadingInterval = Query(
+        default="hour",
+        description="Return raw, 15-minute, hourly, or daily points.",
+    ),
+    limit: int = Query(default=500, ge=1, le=10_000),
+    db: Session = Depends(get_db),
+):
+    """Return the configured site-consumption series through Redis cache."""
+    cache_key = cache.parameter_key(
+        "dashboard:site-consumption",
+        sensor_code=SITE_CONSUMPTION_SENSOR_CODE,
+        start=start,
+        end=end,
+        interval=interval,
+        limit=limit,
+    )
+    cached_payload = cache.get_json(cache_key, namespaced=False)
+    if isinstance(cached_payload, dict):
+        response.headers["X-Cache"] = "HIT"
+        return cached_payload
+
+    payload = get_sensor_readings(
+        sensor_code=SITE_CONSUMPTION_SENSOR_CODE,
+        start=start,
+        end=end,
+        interval=interval,
+        limit=limit,
+        db=db,
+    )
+    cached = cache.set_json(
+        cache_key,
+        payload,
+        DASHBOARD_CHART_CACHE_SECONDS,
+        namespaced=False,
+    )
+    response.headers["X-Cache"] = "MISS" if cached else "BYPASS"
+    return payload
+
+
+@app.get(
     "/api/v1/dashboard/indoor-conditions",
     response_model=IndoorConditionsResponse,
 )
 def get_indoor_conditions(
+    response: Response,
     start: datetime | None = Query(
         default=None,
         description="Inclusive start timestamp in ISO-8601 format.",
@@ -313,6 +398,18 @@ def get_indoor_conditions(
     db: Session = Depends(get_db),
 ):
     """Return an equal-weight average of 31 confirmed temperature sensors."""
+    cache_key = cache.parameter_key(
+        "dashboard:indoor-conditions",
+        start=start,
+        end=end,
+        interval=interval,
+        limit=limit,
+    )
+    cached_payload = cache.get_json(cache_key, namespaced=False)
+    if isinstance(cached_payload, dict):
+        response.headers["X-Cache"] = "HIT"
+        return cached_payload
+
     if start and end and start > end:
         raise HTTPException(
             status_code=400,
@@ -413,7 +510,7 @@ def get_indoor_conditions(
         for point in temperature_points
     ]
 
-    return {
+    payload = {
         "datasetType": "historical",
         "interval": interval,
         "start": start,
@@ -435,13 +532,29 @@ def get_indoor_conditions(
         "co2Unit": co2_unit,
         "points": points,
     }
+    cached = cache.set_json(
+        cache_key,
+        payload,
+        DASHBOARD_CHART_CACHE_SECONDS,
+        namespaced=False,
+    )
+    response.headers["X-Cache"] = "MISS" if cached else "BYPASS"
+    return payload
 
 
 @app.get(
     "/api/v1/dashboard/overview",
     response_model=DashboardOverviewResponse,
 )
-def get_dashboard_overview(db: Session = Depends(get_db)):
+def get_dashboard_overview(
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    cache_key = "dashboard:overview"
+    cached_payload = cache.get_json(cache_key)
+    if isinstance(cached_payload, dict):
+        response.headers["X-Cache"] = "HIT"
+        return cached_payload
     core_sensor_codes = {
         "30000_TL342",
         "30000_TL335",
@@ -492,8 +605,15 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
             }
         )
 
-    return {
+    payload = {
         "datasetType": "historical",
         "cards": cards,
         "latestDatasetTimestamp": latest_dataset_timestamp,
     }
+    cached = cache.set_json(
+        cache_key,
+        payload,
+        DASHBOARD_OVERVIEW_CACHE_SECONDS,
+    )
+    response.headers["X-Cache"] = "MISS" if cached else "BYPASS"
+    return payload

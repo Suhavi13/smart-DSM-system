@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GBTAC dashboard</title>
-    <link rel="stylesheet" href="styles.css?v=2.2" />
+    <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
     <header class="topbar">
@@ -31,14 +31,22 @@
 
       <section class="summary-grid" aria-label="Building summary">
         <article class="summary-card summary-temperature">
-          <div class="summary-card-top"><span>Temperature (sample)</span></div>
-          <p class="summary-value">22.4<span>&deg;C</span></p>
-          <p class="summary-note positive">Within comfort range</p>
+          <div class="summary-card-top"><span>Outdoor temperature</span></div>
+          <p class="summary-value" id="summaryOutdoorTemperature">
+            &mdash;
+          </p>
+          <p class="summary-note" id="summaryOutdoorCondition">
+            Loading external weather&hellip;
+          </p>
         </article>
         <article class="summary-card summary-humidity">
-          <div class="summary-card-top"><span>Humidity (sample)</span></div>
-          <p class="summary-value">46<span>%</span></p>
-          <p class="summary-note">Target: 40-60%</p>
+          <div class="summary-card-top"><span>Outdoor humidity</span></div>
+          <p class="summary-value" id="summaryOutdoorHumidity">
+            &mdash;
+          </p>
+          <p class="summary-note" id="summaryWeatherCacheStatus">
+            Open-Meteo via backend
+          </p>
         </article>
         <article class="summary-card summary-energy">
           <div class="summary-card-top"><span>Energy usage (sample)</span></div>
@@ -235,9 +243,9 @@
 
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="config.js?v=2.3"></script>
-    <script src="api.js?v=2.2"></script>
-    <script src="script.js?v=2.2"></script>
-    <script src="backend-data.js?v=2.3"></script>
+    <script src="config.js?v=4"></script>
+    <script src="api.js?v=4"></script>
+    <script src="script.js?v=4"></script>
+    <script src="backend-data.js?v=4"></script>
   </body>
 </html>

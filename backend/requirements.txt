@@ -7,3 +7,4 @@ pandas
 openpyxl
 pydantic
 httpx
+redis>=5.0,<7.0
