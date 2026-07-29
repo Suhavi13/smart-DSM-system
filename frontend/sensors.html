@@ -1,12 +1,19 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Sensor page metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Building sensors | GBTAC</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
@@ -15,10 +22,15 @@
         <a href="dashboard.html">Dashboard</a>
         <a href="sensors.html" class="active">Sensors</a>
         <a href="recommendations.html">Recommendations</a>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          <span class="theme-toggle-label">Dark mode</span>
+        </button>
         <a href="index.html" class="btn btn-secondary">Log out</a>
       </nav>
     </header>
 
+    <!-- Sensor summaries, filtering, chart, and inventory table -->
     <main class="page-layout sensors-page">
       <section class="dashboard-heading">
         <div>
@@ -36,9 +48,6 @@
             <option value="name">Sensor name</option>
             <option value="type">Type</option>
             <option value="value">Current value</option>
-            <option value="unit">Unit</option>
-            <option value="location">Location</option>
-            <option value="status">Status</option>
           </select>
           <label class="sr-only" for="sensorSearch">Search sensors</label>
           <input id="sensorSearch" type="search" placeholder="Search sensors" />
@@ -50,15 +59,12 @@
           <span>Total sensors</span><strong id="totalSensors">0</strong>
         </article>
         <article class="sensor-summary-card sensor-online">
-          <span>Sensors with imported readings</span
+          <span>Sensors with important readings</span
           ><strong id="onlineSensors">0</strong>
         </article>
         <article class="sensor-summary-card sensor-offline">
-          <span>Sensors without imported readings</span
+          <span>Sensors without important readings</span
           ><strong id="offlineSensors">0</strong>
-        </article>
-        <article class="sensor-summary-card sensor-alerts">
-          <span>P1 priority sensors</span><strong id="activeAlerts">0</strong>
         </article>
       </section>
 
@@ -102,6 +108,7 @@
       </section>
     </main>
 
+    <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>

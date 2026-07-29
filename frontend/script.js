@@ -1,4 +1,43 @@
+// Shared page elements and persistent light/dark theme controls.
 const loginForm = document.getElementById('loginForm');
+const themeToggles = document.querySelectorAll('[data-theme-toggle]');
+
+function applyTheme(theme) {
+  const isDark = theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = isDark ? '#b8c5d6' : '#64748B';
+    Chart.defaults.borderColor = isDark ? '#334155' : '#E2E8F0';
+  }
+
+  themeToggles.forEach((toggle) => {
+    const label = toggle.querySelector('.theme-toggle-label');
+    const icon = toggle.querySelector('.theme-toggle-icon');
+    toggle.setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+    toggle.setAttribute('aria-pressed', String(isDark));
+    if (label) label.textContent = isDark ? 'Light mode' : 'Dark mode';
+    if (icon) icon.textContent = isDark ? '☀' : '☾';
+  });
+}
+
+applyTheme(document.documentElement.dataset.theme || 'light');
+
+themeToggles.forEach((toggle) => {
+  toggle.addEventListener('click', () => {
+    const nextTheme =
+      document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('gbtacTheme', nextTheme);
+    applyTheme(nextTheme);
+
+    // Recreate charts so their canvas labels and grid lines use the new palette.
+    if (document.querySelector('canvas') && typeof Chart !== 'undefined') {
+      window.location.reload();
+    }
+  });
+});
+
 const loginError = document.getElementById('loginError');
 const signupForm = document.getElementById('signupForm');
 const signupError = document.getElementById('signupError');
@@ -20,7 +59,7 @@ const currentUser = document.getElementById('currentUser');
 const currentYear = document.getElementById('currentYear');
 let captchaSolution = null;
 
-
+// Sensor inventory state used by the Sensors page search and summary cards.
 let buildingSensors = [];
 
 const sensors = [
@@ -131,6 +170,7 @@ function getPasswordValidationMessage(password) {
   return '';
 }
 
+// Keep the password checklist synchronized with the user's current input.
 function updatePasswordRequirements(password) {
   const requirements = {
     length: password.length >= 8,
@@ -148,6 +188,7 @@ function updatePasswordRequirements(password) {
   });
 }
 
+// Generate the six-character challenge used by the prototype login form.
 function generateCaptcha() {
   if (!captchaChallenge || !captchaAnswer) return;
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -159,6 +200,7 @@ function generateCaptcha() {
   captchaAnswer.value = '';
 }
 
+// Switch between the login and account-registration forms.
 function showAuthForm(formName) {
   if (!loginForm || !signupForm) return;
   const isLogin = formName === 'login';
@@ -168,6 +210,7 @@ function showAuthForm(formName) {
   signupError.textContent = '';
 }
 
+// Password visibility and clipboard protection handlers.
 function setupPasswordHoldToggles() {
   document.querySelectorAll('[data-password-toggle]').forEach((button) => {
     const passwordInput = document.getElementById(button.dataset.passwordToggle);
@@ -300,6 +343,7 @@ if (currentYear) {
   currentYear.textContent = new Date().getFullYear();
 }
 
+// Render the sample temperature chart when Chart.js is available.
 function initializeSensorChart() {
   const sensorTrendCanvas = document.getElementById('sensorTrendChart');
   if (typeof Chart === 'undefined' || !sensorTrendCanvas) return;
