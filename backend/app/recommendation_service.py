@@ -19,6 +19,7 @@ from .dashboard_sensors import INDOOR_AMBIENT_TEMPERATURE_SENSOR_CODES
 from .models import SensorPoint, SensorReading
 from .services import scale_value
 from .weather_service import WeatherProviderError, get_weather_forecast
+from .ai_service import generate_recommendation
 
 
 SITE_POWER_SENSOR_CODE = os.getenv(
@@ -562,6 +563,34 @@ def evaluate_recommendations(
                     "reason": skipped_reason,
                 }
             )
+
+    # -----------------------------
+    # AI Recommendation
+    # -----------------------------
+    try:
+        ai_text = generate_recommendation(
+            weather="Temperature: 30°C, Humidity: 60%, Forecast: Sunny",
+            predicted_power=22000
+        )
+
+        recommendations.append({
+            "recommendationId": "ai-energy-001",
+            "recommendationVersion": 1,
+            "category": "AI",
+            "title": "AI Forecast Recommendation",
+            "description": ai_text,
+            "reason": "Generated using the Qwen AI model.",
+            "priority": "Medium",
+            "status": "generated",
+            "rule": {
+                "ruleId": "ai-model",
+                "condition": "AI-generated recommendation"
+            },
+            "evidence": []
+        })
+
+    except Exception as e:
+        print(f"AI Recommendation Error: {e}")
 
     priority_order = {"High": 0, "Medium": 1, "Low": 2}
     recommendations.sort(
