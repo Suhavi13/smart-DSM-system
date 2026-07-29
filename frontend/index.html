@@ -83,8 +83,8 @@
         <form id="loginForm" class="auth-form">
           <h1 class="login-heading">Welcome</h1>
 
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="Enter username" autocomplete="username" />
+        <label for="username">Email</label>
+        <input type="email" id="username" placeholder="Enter your email" autocomplete="username" />
 
         <label for="password">Password</label>
         <div class="password-field">
@@ -98,7 +98,7 @@
           <div id="captchaChallenge" class="captcha-challenge" aria-live="polite"></div>
           <button type="button" id="refreshCaptcha" class="captcha-refresh" aria-label="Generate a new CAPTCHA" title="New CAPTCHA">&#8635;</button>
         </div>
-        <input type="text" id="captchaAnswer" placeholder="Enter the letters shown" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" />
+        <input type="text" id="captchaAnswer" placeholder="Enter the letters shown" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" onpaste="return false" oncopy="return false" oncut="return false" ondrop="return false" />
 
         <div id="loginError" class="validation-message"></div>
 

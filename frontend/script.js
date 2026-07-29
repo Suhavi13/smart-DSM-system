@@ -58,6 +58,24 @@ const activeAlerts = document.getElementById('activeAlerts');
 const currentUser = document.getElementById('currentUser');
 const currentYear = document.getElementById('currentYear');
 let captchaSolution = null;
+const registeredUsersStorageKey = 'gbtacRegisteredUsers';
+
+function getRegisteredUsers() {
+  try {
+    const users = JSON.parse(localStorage.getItem(registeredUsersStorageKey) || '[]');
+    return Array.isArray(users) ? users : [];
+  } catch {
+    return [];
+  }
+}
+
+async function hashPassword(password) {
+  const passwordBytes = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', passwordBytes);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 // Sensor inventory state used by the Sensors page search and summary cards.
 let buildingSensors = [];
@@ -246,6 +264,21 @@ setupPasswordHoldToggles();
 setupPasswordClipboardBlock();
 generateCaptcha();
 
+if (captchaChallenge) {
+  captchaChallenge.addEventListener('copy', (event) => event.preventDefault());
+}
+
+if (captchaAnswer) {
+  ['copy', 'cut', 'paste', 'drop'].forEach((eventName) => {
+    captchaAnswer.addEventListener(eventName, (event) => event.preventDefault());
+  });
+}
+
+// New visitors must create an account before they can log in.
+if (loginForm && signupForm && getRegisteredUsers().length === 0) {
+  showAuthForm('signup');
+}
+
 if (refreshCaptcha) {
   refreshCaptcha.addEventListener('click', () => {
     generateCaptcha();
@@ -279,7 +312,7 @@ if (forgotPassword) {
 }
 
 if (signupForm) {
-  signupForm.addEventListener('submit', (event) => {
+  signupForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const firstName = document.getElementById('signupFirstName').value.trim();
     const lastName = document.getElementById('signupLastName').value.trim();
@@ -303,19 +336,36 @@ if (signupForm) {
       return;
     }
 
+    const normalizedEmail = email.toLowerCase();
+    const registeredUsers = getRegisteredUsers();
+    if (registeredUsers.some((user) => user.email === normalizedEmail)) {
+      signupError.textContent = 'An account with this email already exists. Please log in.';
+      return;
+    }
+
+    registeredUsers.push({
+      firstName,
+      lastName,
+      email: normalizedEmail,
+      passwordHash: await hashPassword(password),
+    });
+    localStorage.setItem(registeredUsersStorageKey, JSON.stringify(registeredUsers));
+
     signupError.textContent = '';
-    document.getElementById('username').value = email;
-    localStorage.setItem('gbtacCurrentUser', email);
+    document.getElementById('username').value = normalizedEmail;
+    signupForm.reset();
+    updatePasswordRequirements('');
     generateCaptcha();
     showAuthForm('login');
+    loginError.textContent = 'Account created successfully. Log in with your email and password.';
   });
 }
 
 if (loginForm) {
-  loginForm.addEventListener('submit', (event) => {
+  loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value.trim();
+    const username = document.getElementById('username').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
     const captchaValue = captchaAnswer.value.trim().toUpperCase();
 
     if (!username || !password) {
@@ -323,8 +373,26 @@ if (loginForm) {
       return;
     }
 
+    const registeredUsers = getRegisteredUsers();
+    if (registeredUsers.length === 0) {
+      showAuthForm('signup');
+      signupError.textContent = 'You need to sign up before you can log in.';
+      return;
+    }
+
     if (!captchaAnswer.value || captchaValue !== captchaSolution) {
       loginError.textContent = 'Incorrect security check. Please try the new CAPTCHA.';
+      generateCaptcha();
+      captchaAnswer.focus();
+      return;
+    }
+
+    const passwordHash = await hashPassword(password);
+    const account = registeredUsers.find(
+      (user) => user.email === username && user.passwordHash === passwordHash
+    );
+    if (!account) {
+      loginError.textContent = 'Invalid email or password. Please use the details created during sign up.';
       generateCaptcha();
       captchaAnswer.focus();
       return;

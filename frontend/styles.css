@@ -431,6 +431,11 @@ body.auth-page {
   z-index: 10;
 }
 
+.captcha-challenge {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Shared application header, navigation, and footer. */
 .topbar-title {
   display: flex;
