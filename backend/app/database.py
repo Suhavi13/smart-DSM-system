@@ -67,3 +67,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Create database tables (development only)
+from . import models
+
+print("Creating tables...")
+print(engine.url)
+Base.metadata.create_all(bind=engine)
+print("Finished creating tables.")

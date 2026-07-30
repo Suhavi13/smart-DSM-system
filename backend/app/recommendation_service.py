@@ -563,34 +563,55 @@ def evaluate_recommendations(
                     "reason": skipped_reason,
                 }
             )
+    # ------------------------------------------------
+    # AI Recommendations
+    # ------------------------------------------------
 
-    # -----------------------------
-    # AI Recommendation
-    # -----------------------------
     try:
-        ai_text = generate_recommendation(
-            weather="Temperature: 30°C, Humidity: 60%, Forecast: Sunny",
+        weather = weather_loader()
+
+        ai_recommendations = generate_recommendation(
+            weather=weather,
             predicted_power=22000
         )
 
-        recommendations.append({
-            "recommendationId": "ai-energy-001",
-            "recommendationVersion": 1,
-            "category": "AI",
-            "title": "AI Forecast Recommendation",
-            "description": ai_text,
-            "reason": "Generated using the Qwen AI model.",
-            "priority": "Medium",
-            "status": "generated",
-            "rule": {
-                "ruleId": "ai-model",
-                "condition": "AI-generated recommendation"
-            },
-            "evidence": []
-        })
+        for index, ai_text in enumerate(ai_recommendations, start=1):
+
+            #Extract the AI-generated title
+            title = f"AI Recommendation {index}"
+            description = ai_text
+
+            if "Title:" in ai_text:
+                content = ai_text.split("Title:", 1)[1].strip()
+
+                if "Recommendation:" in content:
+                    title, description = content.split("Recommendation:", 1)
+                    title = title.strip()
+                    description = "Recommendation:\n" + description.strip()
+
+
+
+            recommendations.append(
+                {
+                    "recommendationId": f"ai-energy-{index}",
+                    "recommendationVersion": 1,
+                    "category": "AI",
+                    "title": title,
+                    "description": description,
+                    "reason": "Generated using the Qwen AI model.",
+                    "priority": "Medium",
+                    "status": "triggered",
+                    "rule": {
+                        "ruleId": f"ai-model-{index}",
+                        "condition": "AI-generated recommendation",
+                    },
+                    "evidence": [],
+                }
+            )
 
     except Exception as e:
-        print(f"AI Recommendation Error: {e}")
+        print("AI Error:", e)
+
 
     priority_order = {"High": 0, "Medium": 1, "Low": 2}
     recommendations.sort(

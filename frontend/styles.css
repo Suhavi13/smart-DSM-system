@@ -757,14 +757,18 @@ body.auth-page {
   flex-wrap: wrap;
   color: #000000;
   font-size: 1.05rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  margin-top: 20px;
 }
 
 .recommendation-actions {
   display: flex;
+  justify-content: flex-end;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-
 .recommendation-action {
   min-width: 120px;
 }

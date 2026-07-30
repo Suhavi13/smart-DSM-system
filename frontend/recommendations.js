@@ -75,84 +75,80 @@
   }
 
   function renderRecommendation(recommendation) {
-    return `
-      <article
-        class="recommendation-card"
-        data-recommendation-id="${escapeHtml(
-          recommendation.recommendationId
-        )}"
-        data-recommendation-version="${escapeHtml(
-          recommendation.recommendationVersion
-        )}"
-      >
-        <div class="recommendation-main">
-          <div>
-            <span class="recommendation-category">${escapeHtml(
-              recommendation.category
-            )}</span>
-            <h3 class="recommendation-title">${escapeHtml(
-              recommendation.title
-            )}</h3>
-          </div>
-          <span class="priority priority-${escapeHtml(
-            recommendation.priority.toLowerCase()
-          )}">${escapeHtml(recommendation.priority)}</span>
+  return `
+    <article
+      class="recommendation-card"
+      data-recommendation-id="${escapeHtml(
+        recommendation.recommendationId
+      )}"
+      data-recommendation-version="${escapeHtml(
+        recommendation.recommendationVersion
+      )}"
+    >
+      <div class="recommendation-main">
+        <div>
+          <h3 class="recommendation-title">${escapeHtml(
+            recommendation.title
+          )}</h3>
         </div>
 
-        <p class="recommendation-description">
-          ${escapeHtml(recommendation.description)}
-        </p>
+        <span class="priority priority-${escapeHtml(
+          recommendation.priority.toLowerCase()
+        )}">
+          ${escapeHtml(recommendation.priority)}
+        </span>
+      </div>
+      
+      <div class="recommendation-description">
+       ${escapeHtml(recommendation.description)
+         .replace(
+           /Recommendation:/g,
+            "<strong>Recommendation:</strong>"
+           )
+            .replace(
+               /Reason:/g,
+                "<br><br><strong>Reason:</strong>"
+               )
+                .replace(
+                   /Expected Benefit:/g,
+                    "<br><br><strong>Expected Benefit:</strong>"
+                   )
+                    .replace(/&lt;br&gt;/g, "<br>")
+                    .replace(/&lt;strong&gt;/g, "<strong>")
+                    .replace(/&lt;\/strong&gt;/g, "</strong>")}
+      </div>
 
-        <p class="recommendation-reason">
-          <strong>Why it triggered:</strong>
-          ${escapeHtml(recommendation.reason)}
-        </p>
+      <div class="recommendation-meta">
+        <span>
+          Status:
+          <strong class="recommendation-status status-pending">
+            Pending review
+          </strong>
+        </span>
+       </div>
 
-        <details class="recommendation-rule-details" open>
-          <summary>Evidence and rule</summary>
-          <p class="recommendation-rule-condition">
-            <strong>Rule:</strong> ${escapeHtml(
-              recommendation.rule.condition
-            )}
-          </p>
-          <ul class="recommendation-evidence">
-            ${renderEvidence(recommendation.evidence || [])}
-          </ul>
-        </details>
+      <div class="recommendation-actions">
+        <button
+          type="button"
+          class="btn recommendation-approve recommendation-action"
+          data-decision-action="approved"
+        >
+          Approve
+        </button>
 
-        <div class="recommendation-meta">
-          <span>
-            Status:
-            <strong class="recommendation-status status-pending">
-              Pending review
-            </strong>
-          </span>
-          <span>Rule ID: <strong>${escapeHtml(
-            recommendation.rule.ruleId
-          )}</strong></span>
-        </div>
+        <button
+          type="button"
+          class="btn recommendation-reject recommendation-action"
+          data-decision-action="rejected"
+        >
+          Reject
+        </button>
+      </div>
 
-        <div class="recommendation-actions">
-          <button
-            type="button"
-            class="btn recommendation-approve recommendation-action"
-            data-decision-action="approved"
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            class="btn recommendation-reject recommendation-action"
-            data-decision-action="rejected"
-          >
-            Reject
-          </button>
-        </div>
-
-        <p class="decision-status" role="status" aria-live="polite"></p>
-      </article>
-    `;
-  }
+      <p class="decision-status" role="status" aria-live="polite"></p>
+    </article>
+  `;
+}
 
   function renderNoRecommendations(data) {
     const evaluationItems = (data.evaluations || [])
@@ -187,12 +183,14 @@
 
       if (recommendationSummary) {
         recommendationSummary.textContent =
-          `${data.recommendationCount} of ${data.rulesEvaluated} rules triggered`;
-      }
+         `${data.recommendationCount} recommendation${
+           data.recommendationCount === 1 ? "" : "s"
+           } available`;
+          }
 
       if (recommendationNotice) {
-        recommendationNotice.textContent = data.dataNotice;
-      }
+         recommendationNotice.remove();
+        }
 
       if (!data.recommendations?.length) {
         renderNoRecommendations(data);
