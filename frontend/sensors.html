@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <!-- Sensor page metadata and persistent theme initialization -->
+    <!-- Sensor page metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Building sensors | GBTAC</title>
@@ -10,9 +11,15 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Shared application header and primary navigation -->
     <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">
@@ -38,6 +45,7 @@
       </nav>
     </header>
 
+    <!-- Sensor summaries, filtering, chart, and inventory table -->
     <!-- Sensor summaries, filtering, chart, and inventory table -->
     <main class="page-layout sensors-page">
       <section class="dashboard-heading">
@@ -116,6 +124,7 @@
       </section>
     </main>
 
+    <!-- Shared footer and sensor data scripts -->
     <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

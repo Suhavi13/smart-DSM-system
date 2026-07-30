@@ -1,4 +1,5 @@
 /* Shared design tokens used by every frontend page. */
+/* Shared design tokens used by every frontend page. */
 :root {
   --midnight-plum: #5A0D73;
   --sky-blue: #1E9BD1;
@@ -32,6 +33,7 @@
 }
 
 /* Global page and typography defaults. */
+/* Global page and typography defaults. */
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -63,6 +65,7 @@ body.auth-page {
   overflow-x: hidden;
 }
 
+/* Authentication form layout and controls. */
 /* Authentication form layout and controls. */
 .auth-topbar {
   position: static;
@@ -968,9 +971,11 @@ body.auth-page {
 .sensor-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
+/* Sensor summary cards and inventory presentation. */
 /* Sensor summary cards and inventory presentation. */
 .sensor-summary-card {
   display: grid;

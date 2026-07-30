@@ -31,10 +31,7 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
-        <button type="button" class="btn btn-secondary" data-sign-out>
-          Log out
-        </button>
+        <a href="index.html" class="btn btn-secondary">Log out</a>
       </nav>
     </header>
 
@@ -42,9 +39,7 @@
     <main class="page-layout dashboard-page">
       <section class="dashboard-heading">
         <div>
-          <h1>
-            Hello, <span id="currentUser" data-auth-user-name>Loading…</span>
-          </h1>
+          <h1>Hello, <span id="currentUser">Operator</span></h1>
         </div>
         <!-- <div class="dashboard-update" id="dashboardDataTimestamp">
           Historical data prototype
@@ -280,6 +275,7 @@
       </section>
     </main>
 
+    <!-- Shared footer and dashboard data scripts -->
     <!-- Shared footer and dashboard data scripts -->
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
