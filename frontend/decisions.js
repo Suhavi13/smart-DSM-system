@@ -1,36 +1,7 @@
+import { apiRequest } from "./api.js";
+
 (() => {
   "use strict";
-
-  const API_BASE_URL =
-    window.APP_CONFIG?.API_BASE_URL ||
-    "http://127.0.0.1:8000/api/v1";
-
-  const KEY_STORAGE_NAME = "gbtacDecisionKey";
-
-  function getDecisionKey() {
-    let decisionKey = sessionStorage.getItem(KEY_STORAGE_NAME);
-
-    if (decisionKey) {
-      return decisionKey;
-    }
-
-    decisionKey = window.prompt(
-      "Enter the temporary operator decision key:"
-    );
-
-    if (!decisionKey) {
-      return null;
-    }
-
-    decisionKey = decisionKey.trim();
-
-    if (!decisionKey) {
-      return null;
-    }
-
-    sessionStorage.setItem(KEY_STORAGE_NAME, decisionKey);
-    return decisionKey;
-  }
 
   function createIdempotencyKey() {
     if (
@@ -51,34 +22,23 @@
     const title =
       card.querySelector(".recommendation-title, h2, h3")
         ?.textContent.trim() || "Untitled recommendation";
-
     const description =
       card.querySelector(".recommendation-description")
         ?.textContent.trim() || "";
-
     const reason =
       card.querySelector(".recommendation-reason")
         ?.textContent.trim() || "";
-
     const priority =
       card.querySelector(".priority")?.textContent.trim() || "";
-
     const evidence = [...card.querySelectorAll(
       ".recommendation-evidence-item"
     )].map((item) => item.textContent.replace(/\s+/g, " ").trim());
 
-    return {
-      title,
-      description,
-      reason,
-      priority,
-      evidence,
-    };
+    return { title, description, reason, priority, evidence };
   }
 
   function setCardStatus(card, message, isError = false) {
     const statusElement = card.querySelector(".decision-status");
-
     if (!statusElement) {
       return;
     }
@@ -114,11 +74,10 @@
 
     setCardStatus(
       card,
-      `${decision.action === "approved" ? "Approved" : "Rejected"} on ${new Date(
-        decision.createdAt
-      ).toLocaleString()}`
+      `${decision.action === "approved" ? "Approved" : "Rejected"} by ${
+        decision.operatorLabel
+      } on ${new Date(decision.createdAt).toLocaleString()}`
     );
-
     disableDecisionButtons(card);
   }
 
@@ -126,6 +85,15 @@
     const card = button.closest("[data-recommendation-id]");
 
     if (!card || card.dataset.savedDecision) {
+      return;
+    }
+
+    if (!window.APP_USER?.isOperator) {
+      setCardStatus(
+        card,
+        "Only users with the Operator role can approve or reject recommendations.",
+        true
+      );
       return;
     }
 
@@ -157,33 +125,20 @@
       return;
     }
 
-    const decisionKey = getDecisionKey();
-
-    if (!decisionKey) {
-      setCardStatus(
-        card,
-        "The decision was cancelled because no key was provided.",
-        true
-      );
-      return;
-    }
-
     const cardButtons = [
       ...card.querySelectorAll("[data-decision-action]"),
     ];
-
     cardButtons.forEach((item) => {
       item.disabled = true;
     });
 
-    setCardStatus(card, "Saving decision...");
+    setCardStatus(card, "Saving decision…");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/decisions`, {
+      const response = await apiRequest("/decisions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Decision-Key": decisionKey,
           "Idempotency-Key": createIdempotencyKey(),
         },
         body: JSON.stringify({
@@ -195,25 +150,12 @@
         }),
       });
 
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          sessionStorage.removeItem(KEY_STORAGE_NAME);
-        }
-
-        throw new Error(
-          body.detail ||
-            `Decision request failed (${response.status}).`
-        );
-      }
-
+      const body = await response.json();
       markSavedDecision(card, body);
     } catch (error) {
       cardButtons.forEach((item) => {
         item.disabled = false;
       });
-
       setCardStatus(
         card,
         error.message || "The decision could not be saved.",
@@ -223,26 +165,10 @@
   }
 
   async function restoreSavedDecisions() {
-    const decisionKey = sessionStorage.getItem(KEY_STORAGE_NAME);
-
-    if (!decisionKey) {
-      return;
-    }
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/decisions?limit=500`,
-        {
-          headers: {
-            "X-Decision-Key": decisionKey,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        return;
-      }
-
+      const response = await apiRequest("/decisions?limit=500", {
+        headers: { Accept: "application/json" },
+      });
       const decisions = await response.json();
       const latestByRecommendation = new Map();
 
@@ -262,7 +188,6 @@
           const recommendationId = card.dataset.recommendationId;
           const recommendationVersion =
             card.dataset.recommendationVersion || "1";
-
           const decision = latestByRecommendation.get(
             `${recommendationId}:${recommendationVersion}`
           );
@@ -287,6 +212,4 @@
     "recommendations:rendered",
     restoreSavedDecisions
   );
-
-  document.addEventListener("DOMContentLoaded", restoreSavedDecisions);
 })();

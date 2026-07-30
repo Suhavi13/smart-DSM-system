@@ -1,3 +1,4 @@
+/* Shared design tokens used by every frontend page. */
 :root {
   --midnight-plum: #5A0D73;
   --sky-blue: #1E9BD1;
@@ -30,6 +31,7 @@
   box-sizing: border-box;
 }
 
+/* Global page and typography defaults. */
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -61,6 +63,7 @@ body.auth-page {
   overflow-x: hidden;
 }
 
+/* Authentication form layout and controls. */
 .auth-topbar {
   position: static;
 }
@@ -428,6 +431,7 @@ body.auth-page {
   z-index: 10;
 }
 
+/* Shared application header, navigation, and footer. */
 .topbar-title {
   display: flex;
   gap: 0.95rem;
@@ -963,10 +967,11 @@ body.auth-page {
 
 .sensor-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
+/* Sensor summary cards and inventory presentation. */
 .sensor-summary-card {
   display: grid;
   gap: 0.55rem;
@@ -2252,4 +2257,460 @@ body.auth-page .weather-symbol,
 .recommendation-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
+}
+
+/* Persistent light/dark theme */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  outline: none;
+}
+
+.theme-toggle-icon {
+  width: 1.1rem;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.auth-topbar .theme-toggle {
+  margin-left: auto;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --white: #182235;
+  --light-bg: #0b1120;
+  --text-dark: #e5edf8;
+  --border: #334155;
+  --background: #0b1120;
+  --surface: #182235;
+  --surface-strong: #222d43;
+  --text: #e5edf8;
+  --dark-text: #e5edf8;
+  --muted: #aebdd0;
+  --shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] body.auth-page {
+  background: var(--background);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .auth-container,
+html[data-theme="dark"] .login-container,
+html[data-theme="dark"] .signup-container,
+html[data-theme="dark"] .dashboard-panel,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .sensor-summary-card,
+html[data-theme="dark"] .recommendation-card,
+html[data-theme="dark"] .recommendation-rule-details,
+html[data-theme="dark"] .app-dialog {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] .auth-form input,
+html[data-theme="dark"] .chart-filter-bar input,
+html[data-theme="dark"] .chart-filter-bar select {
+  border-color: #475569;
+  background: #101827;
+  color: #e5edf8;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #8493a8;
+}
+
+html[data-theme="dark"] .chart-filter-bar,
+html[data-theme="dark"] .recommendation-data-notice,
+html[data-theme="dark"] .recommendation-loading,
+html[data-theme="dark"] .recommendation-empty-state,
+html[data-theme="dark"] .recommendation-error-state,
+html[data-theme="dark"] .recommendation-evidence-item,
+html[data-theme="dark"] .recommendation-rule-details summary {
+  border-color: var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .sensor-table th {
+  background: var(--surface-strong);
+  color: #dbe7f5;
+}
+
+html[data-theme="dark"] .sensor-table td,
+html[data-theme="dark"] .sensor-table th {
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .sensor-table tbody tr:hover {
+  background: #222d43;
+}
+
+html[data-theme="dark"] .sensors-page h1,
+html[data-theme="dark"] .dashboard-heading h1,
+html[data-theme="dark"] .auth-form h1,
+html[data-theme="dark"] .app-dialog h2,
+html[data-theme="dark"] .recommendation-category {
+  color: #70c9ef !important;
+}
+
+html[data-theme="dark"] .dashboard-update,
+html[data-theme="dark"] .weather-details dt,
+html[data-theme="dark"] .api-note,
+html[data-theme="dark"] .dashboard-heading p,
+html[data-theme="dark"] .weather-current p:not(.weather-temp),
+html[data-theme="dark"] .recommendation-description,
+html[data-theme="dark"] .recommendation-rule-condition,
+html[data-theme="dark"] .recommendation-evidence-item p,
+html[data-theme="dark"] .recommendation-evaluation-list,
+html[data-theme="dark"] .decision-status,
+html[data-theme="dark"] .app-dialog p {
+  color: #b8c5d6 !important;
+}
+
+html[data-theme="dark"] .recommendation-evidence-value {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] .app-dialog-cancel {
+  border-color: #475569;
+  background: #222d43;
+  color: #e5edf8;
+}
+
+@media (max-width: 720px) {
+  .theme-toggle-label {
+    display: none;
+  }
+
+  .theme-toggle {
+    min-width: 40px;
+    padding-inline: 0.65rem;
+  }
+}
+
+/* Auth-page composition shown in the signup design reference */
+body.auth-page .auth-topbar {
+  min-height: 76px;
+  padding-inline: 2.25rem;
+  background: linear-gradient(105deg, #531078 0%, #2d0647 100%);
+}
+
+body.auth-page .auth-container {
+  max-width: 500px;
+  margin-block: 52px;
+  padding: 46px;
+}
+
+body.auth-page .name-fields {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+body.auth-page .auth-form {
+  gap: 0.85rem;
+}
+
+body.auth-page .auth-form h1 {
+  font-size: 2.1rem;
+  letter-spacing: 0.01em;
+}
+
+body.auth-page .auth-subtitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+body.auth-page .auth-form input {
+  min-height: 52px;
+  border-radius: 10px;
+}
+
+.theme-toggle-icon {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #7c3aed;
+  font-size: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.theme-toggle-icon::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease;
+}
+
+[aria-pressed="true"] .theme-toggle-icon::after {
+  transform: translateX(16px);
+}
+
+html[data-theme="dark"] body.auth-page {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(91, 54, 140, 0.09), transparent 32rem),
+    #090a13;
+}
+
+html[data-theme="dark"] body.auth-page .auth-container {
+  border: 1px solid #343744;
+  background: linear-gradient(145deg, #191b24 0%, #12141c 100%);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme="dark"] body.auth-page .auth-form h1 {
+  color: #a855f7 !important;
+}
+
+html[data-theme="dark"] body.auth-page .auth-subtitle {
+  color: #aeb0ba !important;
+}
+
+html[data-theme="dark"] body.auth-page .auth-form label {
+  color: #f5f5f7;
+}
+
+html[data-theme="dark"] body.auth-page .auth-form input {
+  border-color: #3a3d48;
+  background: #11131a;
+  color: #f5f5f7;
+}
+
+html[data-theme="dark"] body.auth-page .requirements-title {
+  color: #b56cff !important;
+}
+
+html[data-theme="dark"] body.auth-page .password-requirements {
+  color: #f1f1f4;
+}
+
+html[data-theme="dark"] body.auth-page .password-requirements li::before {
+  border-color: #686b76;
+  background: transparent;
+}
+
+html[data-theme="dark"] body.auth-page .password-requirements li.is-valid::before {
+  background: var(--success);
+}
+
+@media (max-width: 600px) {
+  body.auth-page .auth-topbar {
+    padding-inline: 1rem;
+  }
+
+  body.auth-page .auth-container {
+    width: calc(100% - 2rem);
+    margin-block: 2rem;
+    padding: 1.75rem;
+  }
+}
+
+/* Match the authentication header and footer to all application pages. */
+body.auth-page .topbar.auth-topbar {
+  position: sticky !important;
+  top: 0;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 1.25rem 1.5rem !important;
+  background: var(--midnight-plum) !important;
+  border: 0 !important;
+  box-shadow: 0 2px 20px rgba(85, 11, 98, 0.18) !important;
+}
+
+body.auth-page .site-footer.auth-footer {
+  min-height: 0 !important;
+  padding: 1.25rem 1.5rem !important;
+  background: var(--midnight-plum) !important;
+  border: 0 !important;
+}
+
+@media (max-width: 720px) {
+  body.auth-page .topbar.auth-topbar,
+  body.auth-page .site-footer.auth-footer {
+    padding-inline: 1rem !important;
+  }
+}
+
+html[data-theme="dark"] body.auth-page {
+  background: var(--background) !important;
+}
+
+body.auth-page .topbar-wordmark {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] body.auth-page .password-requirements,
+html[data-theme="dark"] body.auth-page .password-requirements li {
+  color: #000000 !important;
+}
+
+html[data-theme="dark"] body.auth-page .auth-form input {
+  color: #000000 !important;
+  caret-color: #000000;
+}
+
+html[data-theme="dark"] body.auth-page:has(#signupForm:not(.is-hidden)) .auth-container {
+  background: linear-gradient(145deg, #1A1C24 0%, #14161E 100%) !important;
+  border-color: #343741 !important;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.38) !important;
+}
+
+html[data-theme="dark"] body.auth-page:has(#signupForm:not(.is-hidden)) {
+  background: #090A13 !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm .signup-heading {
+  color: #A855F7 !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm .signup-subtitle {
+  color: #AEB0BA !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm label {
+  color: #F5F5F7 !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm input {
+  border-color: #3A3D48 !important;
+  background: #11131A !important;
+  color: #F5F5F7 !important;
+  caret-color: #F5F5F7;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm input::placeholder {
+  color: #A8ABB5 !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm .requirements-title {
+  color: #B56CFF !important;
+}
+
+html[data-theme="dark"] body.auth-page #signupForm .password-requirements,
+html[data-theme="dark"] body.auth-page #signupForm .password-requirements li {
+  color: #F1F1F4 !important;
+}
+
+html[data-theme="dark"] body.auth-page:has(#loginForm:not(.is-hidden)) {
+  background: #090A13 !important;
+}
+
+html[data-theme="dark"] body.auth-page:has(#loginForm:not(.is-hidden)) .auth-container {
+  background: linear-gradient(145deg, #1A1C24 0%, #14161E 100%) !important;
+  border-color: #343741 !important;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.38) !important;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm .login-heading {
+  color: #A855F7 !important;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm label {
+  color: #F5F5F7 !important;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm input {
+  border-color: #3A3D48 !important;
+  background: #11131A !important;
+  color: #F5F5F7 !important;
+  caret-color: #F5F5F7;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm input::placeholder {
+  color: #A8ABB5 !important;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm .captcha-challenge,
+html[data-theme="dark"] body.auth-page #loginForm .captcha-refresh {
+  border-color: #3A3D48 !important;
+  background: #11131A !important;
+}
+
+html[data-theme="dark"] body.auth-page #loginForm .captcha-challenge {
+  color: #F5F5F7 !important;
+}
+
+html .topbar .topbar-wordmark,
+html[data-theme="dark"] .topbar .topbar-wordmark {
+  color: #FFFFFF !important;
+}
+
+/* Microsoft Entra authentication and role UI */
+.entra-login-card {
+  gap: 1rem;
+  text-align: center;
+}
+
+.auth-provider-label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.microsoft-signin-button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.auth-security-note {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.auth-role-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.auth-access-error {
+  max-width: 44rem;
+  margin: 4rem auto;
+  padding: 2rem;
+  border: 1px solid currentColor;
+  border-radius: 1rem;
+}
+
+[hidden] {
+  display: none !important;
 }

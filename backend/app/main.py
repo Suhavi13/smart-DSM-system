@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
+from .auth import CurrentUser, viewer_or_operator
 from .cache_service import cache
 from .dashboard_sensors import (
     ENERGY_CONSUMPTION_SENSOR_CODE,
@@ -37,6 +38,7 @@ from .weather_service import (
 
 from .routers.decisions import router as decisions_router
 from .routers.recommendations import router as recommendations_router
+from backend.app.routers import auth
 
 
 
@@ -54,21 +56,24 @@ app = FastAPI(
 
 app.include_router(decisions_router)
 app.include_router(recommendations_router)
+app.include_router(auth.router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:8081",
-        "http://localhost:8081",
-        "http://127.0.0.1:5500",
+        # "http://127.0.0.1:8081",
+        # "http://localhost:8081",
+        # "http://127.0.0.1:5500",
+        # "http://127.0.0.1:5501",
         "http://localhost:5500",
+        "http://localhost:5501",
     ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
+        "Accept",
         "Content-Type",
         "Authorization",
-        "X-Decision-Key",
         "Idempotency-Key",
     ],
     expose_headers=["X-Cache"],
@@ -188,7 +193,10 @@ def health_check():
     "/api/v1/external/weather/forecast",
     response_model=WeatherForecastResponse,
 )
-def get_weather_dashboard_forecast(response: Response):
+def get_weather_dashboard_forecast(
+    response: Response,
+    user: CurrentUser = Depends(viewer_or_operator),
+):
     try:
         payload = get_weather_forecast()
         response.headers["X-Cache"] = payload["cacheStatus"].upper()
@@ -207,6 +215,7 @@ def get_sensors(
         description="Include each sensor's latest imported reading.",
     ),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ):
     if includeLatest:
         rows = inventory_sensor_latest_rows(db)
@@ -232,7 +241,11 @@ def get_sensors(
     "/api/v1/sensors/{sensor_code}",
     response_model=SensorSummaryResponse,
 )
-def get_sensor(sensor_code: str, db: Session = Depends(get_db)):
+def get_sensor(
+    sensor_code: str,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
+):
     sensor = (
         db.query(SensorPoint)
         .filter(SensorPoint.sensor_code == sensor_code)
@@ -277,6 +290,7 @@ def get_sensor_readings(
     ),
     limit: int = Query(default=500, ge=1, le=10_000),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ):
     if start and end and start > end:
         raise HTTPException(
@@ -367,6 +381,7 @@ def get_dashboard_energy_consumption(
     ),
     limit: int = Query(default=500, ge=1, le=10_000),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ):
     """Derive Wh/kWh usage and average W from a cumulative energy counter."""
     if start and end and start > end:
@@ -501,6 +516,7 @@ def get_indoor_conditions(
     ),
     limit: int = Query(default=500, ge=1, le=10_000),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ):
     """Return an equal-weight average of 31 confirmed temperature sensors."""
     cache_key = cache.parameter_key(
@@ -606,6 +622,7 @@ def get_indoor_conditions(
 def get_dashboard_overview(
     response: Response,
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ):
     cache_key = "dashboard:overview"
     cached_payload = cache.get_json(cache_key)

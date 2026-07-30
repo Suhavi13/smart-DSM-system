@@ -1,12 +1,19 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Dashboard metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GBTAC dashboard</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
     <link rel="stylesheet" href="styles.css?v=4" />
   </head>
   <body>
+    <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
@@ -15,14 +22,29 @@
         <a href="dashboard.html" class="active">Dashboard</a>
         <a href="sensors.html">Sensors</a>
         <a href="recommendations.html">Recommendations</a>
-        <a href="index.html" class="btn btn-secondary">Log out</a>
+        <button
+          type="button"
+          class="theme-toggle"
+          data-theme-toggle
+          aria-label="Switch to dark mode"
+        >
+          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          <span class="theme-toggle-label">Dark mode</span>
+        </button>
+        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
+        <button type="button" class="btn btn-secondary" data-sign-out>
+          Log out
+        </button>
       </nav>
     </header>
 
+    <!-- Building overview, charts, weather, and recommendation preview -->
     <main class="page-layout dashboard-page">
       <section class="dashboard-heading">
         <div>
-          <h1>Good morning, <span id="currentUser">Operator</span></h1>
+          <h1>
+            Hello, <span id="currentUser" data-auth-user-name>Loading…</span>
+          </h1>
         </div>
         <!-- <div class="dashboard-update" id="dashboardDataTimestamp">
           Historical data prototype
@@ -44,14 +66,14 @@
             Open-Meteo via backend
           </p>
         </article>
-        <article class="summary-card summary-energy">
+        <!-- <article class="summary-card summary-energy">
           <div class="summary-card-top"><span>Latest period energy</span></div>
           <p class="summary-value" id="summaryEnergyUsage">&mdash;</p>
           <p class="summary-note positive" id="summaryEnergyNote">
             Calculating from cumulative readings&hellip;
           </p>
-        </article>
-        <article class="summary-card summary-price">
+        </article> -->
+        <!-- <article class="summary-card summary-price">
           <div class="summary-card-top">
             <span>Electricity price (sample)</span>
           </div>
@@ -62,7 +84,7 @@
           <div class="summary-card-top"><span>Prototype status</span></div>
           <p class="summary-value summary-status-value">Historical</p>
           <p class="summary-note positive">Imported readings available</p>
-        </article>
+        </article> -->
         <article class="summary-card summary-pending">
           <div class="summary-card-top">
             <span>Active recommendations</span>
@@ -258,11 +280,13 @@
       </section>
     </main>
 
+    <!-- Shared footer and dashboard data scripts -->
     <footer class="site-footer"></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js?v=6"></script>
-    <script src="api.js?v=6"></script>
-    <script src="script.js?v=6"></script>
-    <script src="backend-data.js?v=6"></script>
+    <script type="module" src="api.js?v=6"></script>
+    <script type="module" src="script.js?v=6"></script>
+    <script type="module" src="backend-data.js?v=6"></script>
+    <script type="module" src="auth-ui.js?v=entra-auth-1"></script>
   </body>
 </html>

@@ -1,3 +1,5 @@
+import { apiGet } from "./api.js";
+
 (() => {
   "use strict";
 
@@ -132,7 +134,7 @@
           )}</strong></span>
         </div>
 
-        <div class="recommendation-actions">
+        <div class="recommendation-actions" data-operator-only>
           <button
             type="button"
             class="btn recommendation-approve recommendation-action"

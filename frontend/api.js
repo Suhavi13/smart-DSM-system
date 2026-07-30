@@ -1,12 +1,8 @@
-async function apiGet(path) {
-  const response = await fetch(
-    `${window.APP_CONFIG.API_BASE_URL}${path}`,
-    {
-      headers: {
-        Accept: "application/json"
-      }
-    }
-  );
+import { apiFetch } from "./auth.js";
+
+
+export async function apiRequest(path, options = {}) {
+  const response = await apiFetch(path, options);
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
@@ -21,5 +17,13 @@ async function apiGet(path) {
     throw new Error(message);
   }
 
+  return response;
+}
+
+
+export async function apiGet(path) {
+  const response = await apiRequest(path, {
+    headers: { Accept: "application/json" },
+  });
   return response.json();
 }

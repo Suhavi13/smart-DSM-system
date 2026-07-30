@@ -1,3 +1,13 @@
+import { apiGet } from "./api.js";
+import {
+  renderSensors,
+  setBuildingSensors,
+  updateSensorSummary,
+} from "./script.js";
+
+const sensorTableBody = document.getElementById("sensorTableBody");
+const sensorResultCount = document.getElementById("sensorResultCount");
+
 function formatValue(value) {
   const number = Number(value);
 
@@ -27,7 +37,7 @@ async function loadSensorsFromBackend() {
   try {
     const apiSensors = await apiGet("/sensors?includeLatest=true");
 
-    buildingSensors = apiSensors.map((sensor) => ({
+    setBuildingSensors(apiSensors.map((sensor) => ({
       id: sensor.sensorCode,
       name: sensor.displayName,
       type: sensor.category || "Uncategorized",
@@ -41,7 +51,7 @@ async function loadSensorsFromBackend() {
         ? formatTimestamp(sensor.latestTimestamp)
         : "Not imported yet",
       priority: sensor.priority
-    }));
+    })));
 
     updateSensorSummary();
     renderSensors();
@@ -520,9 +530,9 @@ async function loadWeatherForecastChart() {
       summaryCacheStatus.textContent = data.isStale
         ? "Last successful forecast (stale)"
         : data.cacheStatus === "hit"
-          ? "Served from Redis cache"
+          ? "Served from cache"
           : data.cacheStatus === "miss"
-            ? "Fresh from Open-Meteo"
+            ? "Live provider response"
             : "Live provider response";
       summaryCacheStatus.classList.toggle("warning-text", data.isStale);
     }

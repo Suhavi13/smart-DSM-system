@@ -1,17 +1,11 @@
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    Header,
-    HTTPException,
-    Query,
-    status,
-)
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from backend.app.auth import CurrentUser, operator_only, viewer_or_operator
+
 from ..database import get_db
-from ..decision_security import require_decision_key
 from ..models import RecommendationDecision
 from ..schemas import DecisionCreate, DecisionResponse
 
@@ -22,6 +16,12 @@ router = APIRouter(
 )
 
 
+def _operator_label(user: CurrentUser) -> str:
+    """Create a readable audit label without trusting frontend identity data."""
+    label = f"{user.name} ({user.username})"
+    return label[:200]
+
+
 @router.post(
     "",
     response_model=DecisionResponse,
@@ -30,10 +30,6 @@ router = APIRouter(
 )
 def create_decision(
     payload: DecisionCreate,
-    operator_label: Annotated[
-        str,
-        Depends(require_decision_key),
-    ],
     idempotency_key: Annotated[
         str,
         Header(
@@ -43,13 +39,11 @@ def create_decision(
         ),
     ],
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(operator_only),
 ) -> RecommendationDecision:
     existing_idempotent_request = (
         db.query(RecommendationDecision)
-        .filter(
-            RecommendationDecision.idempotency_key
-            == idempotency_key
-        )
+        .filter(RecommendationDecision.idempotency_key == idempotency_key)
         .first()
     )
 
@@ -80,20 +74,15 @@ def create_decision(
         recommendation_id=payload.recommendation_id,
         recommendation_version=payload.recommendation_version,
         action=payload.action,
-        comment=payload.comment.strip()
-        if payload.comment
-        else None,
-        operator_label=operator_label,
-        recommendation_snapshot=(
-            payload.recommendation_snapshot
-        ),
+        comment=payload.comment.strip() if payload.comment else None,
+        operator_label=_operator_label(user),
+        recommendation_snapshot=payload.recommendation_snapshot,
         idempotency_key=idempotency_key,
     )
 
     db.add(decision)
     db.commit()
     db.refresh(decision)
-
     return decision
 
 
@@ -103,15 +92,13 @@ def create_decision(
     response_model_by_alias=True,
 )
 def list_decisions(
-    _: Annotated[str, Depends(require_decision_key)],
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
 ) -> list[RecommendationDecision]:
     return (
         db.query(RecommendationDecision)
-        .order_by(
-            RecommendationDecision.created_at.desc()
-        )
+        .order_by(RecommendationDecision.created_at.desc())
         .limit(limit)
         .all()
     )

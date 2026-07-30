@@ -1,100 +1,71 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title></title>
-  <link rel="stylesheet" href="styles.css?v=auth-clean-20260621" />
-</head>
-<body class="auth-page">
-  <header class="topbar auth-topbar">
-    <div class="topbar-title">
-      <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
-    </div>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in | GBTAC</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
+    <link rel="stylesheet" href="styles.css?v=entra-auth-1" />
+  </head>
+  <body class="auth-page">
+    <header class="topbar auth-topbar">
+      <div class="topbar-title">
+        <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
+      </div>
+      <button
+        type="button"
+        class="theme-toggle"
+        data-theme-toggle
+        aria-label="Switch to dark mode"
+      >
+        <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+        <span class="theme-toggle-label">Dark mode</span>
+      </button>
+    </header>
 
-  <main class="auth-container">
-        <form id="signupForm" class="auth-form is-hidden">
-          <h1 class="signup-heading">Create Account</h1>
-          <p class="auth-subtitle signup-subtitle">Sign up</p>
+    <main class="auth-container">
+      <section class="auth-form entra-login-card" aria-labelledby="loginHeading">
+        <p class="auth-provider-label">Microsoft Entra ID</p>
+        <h1 id="loginHeading" class="login-heading">Welcome</h1>
+        <p class="auth-subtitle">
+          Sign in with the Microsoft account assigned to the GBTAC dashboard.
+        </p>
 
-        <div class="name-fields">
-          <div class="name-field">
-            <label for="signupFirstName">First name</label>
-            <input type="text" id="signupFirstName" placeholder="Enter first name" autocomplete="given-name" />
-          </div>
-          <div class="name-field">
-            <label for="signupLastName">Last name</label>
-            <input type="text" id="signupLastName" placeholder="Enter last name" autocomplete="family-name" />
-          </div>
-        </div>
+        <button
+          id="microsoftSignInButton"
+          type="button"
+          class="btn btn-primary microsoft-signin-button"
+        >
+          Sign in with Microsoft
+        </button>
 
-        <label for="signupEmail">Email</label>
-        <input type="email" id="signupEmail" placeholder="Enter email" autocomplete="email" />
+        <button
+          id="microsoftSignOutButton"
+          type="button"
+          class="btn btn-secondary"
+          hidden
+        >
+          Sign out and use another account
+        </button>
 
-        <label for="signupPassword">Password</label>
-        <div class="password-field">
-          <input
-            type="password"
-            id="signupPassword"
-            placeholder="Create password"
-            autocomplete="new-password"
-            minlength="8"
-            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9])\S{8,}$"
-            title="Password must be at least 8 characters and include uppercase, lowercase, number, special character, and no spaces."
-          />
-          <button type="button" class="password-toggle" data-password-toggle="signupPassword" aria-label="Hold to show password">&#128065;</button>
-        </div>
-        <p class="requirements-title">Password requirements</p>
-        <ul class="password-requirements" aria-label="Password requirements">
-          <li data-password-requirement="length">Minimum 8 characters long.</li>
-          <li data-password-requirement="uppercase">Includes uppercase letter.</li>
-          <li data-password-requirement="lowercase">Includes lowercase letter.</li>
-          <li data-password-requirement="number">Includes number.</li>
-          <li data-password-requirement="special">Includes special character.</li>
-          <li data-password-requirement="spaces">No spaces.</li>
-        </ul>
+        <p id="loginStatus" class="validation-message" role="status">
+          Loading Microsoft sign-in…
+        </p>
 
-        <label for="confirmPassword">Confirm password</label>
-        <div class="password-field">
-          <input type="password" id="confirmPassword" placeholder="Confirm password" autocomplete="new-password" />
-          <button type="button" class="password-toggle" data-password-toggle="confirmPassword" aria-label="Hold to show confirm password">&#128065;</button>
-        </div>
+        <p class="auth-security-note">
+          Access is controlled by the Viewer and Operator roles assigned in
+          Microsoft Entra ID.
+        </p>
+      </section>
+    </main>
 
-        <div id="signupError" class="validation-message"></div>
-
-        <button type="submit" class="btn btn-primary">Sign up</button>
-        <button type="button" id="showLogin" class="auth-link-button">Already have an account? <span class="underlined-link-text">Log in</span></button>
-        </form>
-
-        <form id="loginForm" class="auth-form">
-          <h1 class="login-heading">Welcome</h1>
-
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="Enter username" autocomplete="username" />
-
-        <label for="password">Password</label>
-        <div class="password-field">
-          <input type="password" id="password" placeholder="Enter password" autocomplete="current-password" />
-          <button type="button" class="password-toggle" data-password-toggle="password" aria-label="Hold to show password">&#128065;</button>
-        </div>
-        <button type="button" id="forgotPassword" class="auth-link-button forgot-password-button">Forgot password?</button>
-
-        <label for="captchaAnswer">Verify you're human by entering the text below</label>
-        <div class="captcha-row">
-          <div id="captchaChallenge" class="captcha-challenge" aria-live="polite"></div>
-          <button type="button" id="refreshCaptcha" class="captcha-refresh" aria-label="Generate a new CAPTCHA" title="New CAPTCHA">&#8635;</button>
-        </div>
-        <input type="text" id="captchaAnswer" placeholder="Enter the letters shown" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" />
-
-        <div id="loginError" class="validation-message"></div>
-
-        <button type="submit" class="btn btn-primary">Log in</button>
-        <button type="button" id="showSignup" class="auth-link-button">Need an account? <span class="underlined-link-text">Sign up</span></button>
-        </form>
-  </main>
-
-  <footer class="site-footer auth-footer"></footer>
-  <script src="script.js"></script>
-</body>
+    <footer class="site-footer auth-footer"></footer>
+    <script src="config.js?v=entra-auth-1"></script>
+    <script type="module" src="script.js?v=entra-auth-1"></script>
+    <script type="module" src="login.js?v=entra-auth-1"></script>
+  </body>
 </html>
