@@ -12,3 +12,5 @@ services/**/.env
 .venv/
 backend/.venv/
 services/**/.venv/
+
+frontend/node_modules/
