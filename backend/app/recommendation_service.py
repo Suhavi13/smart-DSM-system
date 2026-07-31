@@ -564,23 +564,28 @@ def evaluate_recommendations(
                 }
             )
     # ------------------------------------------------
-    # AI Recommendations
+    # Generate AI-powered energy optimization recommendations
     # ------------------------------------------------
 
     try:
+         # Load the latest weather information for the building
         weather = weather_loader()
 
+ # Send weather and predicted power usage to the AI model
+    # The AI returns multiple energy-saving recommendations
         ai_recommendations = generate_recommendation(
             weather=weather,
             predicted_power=22000
         )
-
+ # Process each AI-generated recommendation
         for index, ai_text in enumerate(ai_recommendations, start=1):
 
-            #Extract the AI-generated title
+            # Default title and description
             title = f"AI Recommendation {index}"
             description = ai_text
 
+  # Extract the title and recommendation text if the AI
+        # follows the expected output format
             if "Title:" in ai_text:
                 content = ai_text.split("Title:", 1)[1].strip()
 
@@ -590,7 +595,7 @@ def evaluate_recommendations(
                     description = "Recommendation:\n" + description.strip()
 
 
-
+ # Store the AI recommendation in the response list
             recommendations.append(
                 {
                     "recommendationId": f"ai-energy-{index}",
@@ -610,33 +615,12 @@ def evaluate_recommendations(
             )
 
     except Exception as e:
+          # Log AI errors without stopping the application
         print("AI Error:", e)
 
 
-    # -----------------------------
-    # AI Recommendation
-    # -----------------------------
-    try:
-        ai_text = generate_recommendation(
-            weather="Temperature: 30°C, Humidity: 60%, Forecast: Sunny",
-            predicted_power=22000
-        )
+    
 
-        recommendations.append({
-            "recommendationId": "ai-energy-001",
-            "recommendationVersion": 1,
-            "category": "AI",
-            "title": "AI Forecast Recommendation",
-            "description": ai_text,
-            "reason": "Generated using the Qwen AI model.",
-            "priority": "Medium",
-            "status": "triggered",
-            "rule": {
-                "ruleId": "ai-model",
-                "condition": "AI-generated recommendation"
-            },
-            "evidence": []
-        })
 
     except Exception as e:
         print(f"AI Recommendation Error: {e}")
