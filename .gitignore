@@ -12,3 +12,6 @@ services/**/.env
 .venv/
 backend/.venv/
 services/**/.venv/
+
+__pycache__/
+*.pyc

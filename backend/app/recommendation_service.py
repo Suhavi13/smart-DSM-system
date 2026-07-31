@@ -563,6 +563,55 @@ def evaluate_recommendations(
                     "reason": skipped_reason,
                 }
             )
+    # ------------------------------------------------
+    # AI Recommendations
+    # ------------------------------------------------
+
+    try:
+        weather = weather_loader()
+
+        ai_recommendations = generate_recommendation(
+            weather=weather,
+            predicted_power=22000
+        )
+
+        for index, ai_text in enumerate(ai_recommendations, start=1):
+
+            #Extract the AI-generated title
+            title = f"AI Recommendation {index}"
+            description = ai_text
+
+            if "Title:" in ai_text:
+                content = ai_text.split("Title:", 1)[1].strip()
+
+                if "Recommendation:" in content:
+                    title, description = content.split("Recommendation:", 1)
+                    title = title.strip()
+                    description = "Recommendation:\n" + description.strip()
+
+
+
+            recommendations.append(
+                {
+                    "recommendationId": f"ai-energy-{index}",
+                    "recommendationVersion": 1,
+                    "category": "AI",
+                    "title": title,
+                    "description": description,
+                    "reason": "Generated using the Qwen AI model.",
+                    "priority": "Medium",
+                    "status": "triggered",
+                    "rule": {
+                        "ruleId": f"ai-model-{index}",
+                        "condition": "AI-generated recommendation",
+                    },
+                    "evidence": [],
+                }
+            )
+
+    except Exception as e:
+        print("AI Error:", e)
+
 
     # -----------------------------
     # AI Recommendation
