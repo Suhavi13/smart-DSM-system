@@ -1,3 +1,5 @@
+"""Quick manual check that the backend can connect to PostgreSQL."""
+
 from sqlalchemy import text
 
 from backend.app.database import engine

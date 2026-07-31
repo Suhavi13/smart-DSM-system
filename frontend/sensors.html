@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <!-- Sensor page metadata and persistent theme initialization -->
-    <!-- Sensor page metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Building sensors | GBTAC</title>
@@ -20,7 +19,6 @@
   </head>
   <body>
     <!-- Shared application header and primary navigation -->
-    <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
@@ -28,7 +26,7 @@
       <nav class="topnav" aria-label="Primary navigation">
         <a href="dashboard.html">Dashboard</a>
         <a href="sensors.html" class="active">Sensors</a>
-        <a href="recommendations.html">Recommendations</a>
+        <a href="recommendations.html" data-operator-only hidden>Recommendations</a>
         <button
           type="button"
           class="theme-toggle"
@@ -46,7 +44,6 @@
     </header>
 
     <!-- Sensor summaries, filtering, chart, and inventory table -->
-    <!-- Sensor summaries, filtering, chart, and inventory table -->
     <main class="page-layout sensors-page">
       <section class="dashboard-heading">
         <div>
@@ -54,6 +51,7 @@
           <h1>Building sensors</h1>
           <p></p>
         </div>
+        <!-- Search controls filter the visible sensor rows on the frontend. -->
         <div class="search-box">
           <label class="sr-only" for="sensorFilterField"
             >Filter sensors by</label
@@ -70,6 +68,7 @@
         </div>
       </section>
 
+      <!-- Summary cards are filled from the current sensor data set. -->
       <section class="sensor-summary-grid" aria-label="Sensor summary">
         <article class="sensor-summary-card">
           <span>Total sensors</span><strong id="totalSensors">0</strong>
@@ -84,6 +83,7 @@
         </article>
       </section>
 
+      <!-- Frontend chart area for the sample temperature trend. -->
       <section class="dashboard-panel sensor-chart-panel">
         <div class="panel-heading">
           <div>
@@ -99,6 +99,7 @@
         </div>
       </section>
 
+      <!-- Sensor inventory table; script.js renders the body rows. -->
       <section class="panel table-panel sensor-table-panel">
         <div class="panel-heading">
           <div>
@@ -125,13 +126,12 @@
     </main>
 
     <!-- Shared footer and sensor data scripts -->
-    <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>
     <script type="module" src="script.js"></script>
     <script type="module" src="backend-data.js"></script>
-    <script type="module" src="auth-ui.js?v=entra-auth-1"></script>
+    <script type="module" src="auth-ui.js?v=viewer-signup-1"></script>
   </body>
 </html>

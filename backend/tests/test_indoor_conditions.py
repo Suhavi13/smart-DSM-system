@@ -1,3 +1,5 @@
+"""Indoor temperature aggregation endpoint tests."""
+
 from datetime import datetime
 
 from fastapi.testclient import TestClient

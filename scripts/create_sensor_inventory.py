@@ -1,3 +1,5 @@
+"""Create a simple sensor inventory workbook from the merged time-series CSV."""
+
 import pandas as pd
 
 df = pd.read_csv("../data/merged_timeseries_student.csv")

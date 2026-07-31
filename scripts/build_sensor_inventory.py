@@ -1,24 +1,22 @@
+"""Build the first sensor inventory workbook from CSV columns and metadata."""
+
 import pandas as pd
 
-# Trend data (header only)
 trend_df = pd.read_csv(
     "../data/merged_timeseries_student.csv",
     nrows=0
 )
 
-# Metadata file
 meta_df = pd.read_excel(
     "../data/Sensor_Names.xlsx"
 )
 
-# Get sensor columns from trend file
 trend_columns = trend_df.columns.tolist()[1:]
 
 inventory = []
 
 for col in trend_columns:
 
-    # Remove SaitSolarLab_
     sensor_code = col.replace("SaitSolarLab_", "")
 
     match = meta_df[

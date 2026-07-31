@@ -1,5 +1,4 @@
 /* Shared design tokens used by every frontend page. */
-/* Shared design tokens used by every frontend page. */
 :root {
   --midnight-plum: #5A0D73;
   --sky-blue: #1E9BD1;
@@ -33,7 +32,6 @@
 }
 
 /* Global page and typography defaults. */
-/* Global page and typography defaults. */
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -65,7 +63,6 @@ body.auth-page {
   overflow-x: hidden;
 }
 
-/* Authentication form layout and controls. */
 /* Authentication form layout and controls. */
 .auth-topbar {
   position: static;
@@ -251,9 +248,9 @@ body.auth-page {
 }
 
 .requirements-title {
-  margin: -0.2rem 0 -0.4rem 0;
-  color: var(--primary);
-  font-size: 0.78rem;
+  margin: -0.1rem 0 -0.35rem 0;
+  color: var(--text);
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -293,6 +290,32 @@ body.auth-page {
 .password-requirements li.is-valid::before {
   content: "✓";
   border-color: var(--success);
+  background: var(--success);
+}
+
+.password-checklist {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.password-checklist li::before {
+  content: "";
+  display: inline-grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  min-width: 1.1rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.password-checklist li.is-valid::before {
+  content: "\2713";
   background: var(--success);
 }
 
@@ -355,6 +378,8 @@ body.auth-page {
 }
 
 .auth-link-button {
+  display: inline-flex;
+  align-items: center;
   border: none;
   background: transparent;
   color: var(--sky-blue);
@@ -971,11 +996,9 @@ body.auth-page {
 .sensor-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-/* Sensor summary cards and inventory presentation. */
 /* Sensor summary cards and inventory presentation. */
 .sensor-summary-card {
   display: grid;
@@ -1072,7 +1095,7 @@ body.auth-page {
   width: 1px;
 }
 
-/* Dashboard */
+/* Dashboard and recommendation page structure. */
 .dashboard-page,
 .recommendations-page {
   display: grid;
@@ -2096,7 +2119,7 @@ body.auth-page .weather-symbol,
 .chart-filter-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end;
   gap: 0.75rem;
   margin: 0 0 1rem;
   padding: 0.85rem;
@@ -2119,6 +2142,27 @@ body.auth-page .weather-symbol,
   border: 1px solid #cbd8df;
   border-radius: 7px;
   background: #ffffff;
+}
+
+.chart-filter-bar .primary-button {
+  align-self: flex-end;
+  min-height: 38px;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--midnight-plum);
+  border-radius: 7px;
+  background: var(--midnight-plum);
+  color: #FFFFFF;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.chart-filter-bar .primary-button:hover,
+.chart-filter-bar .primary-button:focus-visible {
+  background: var(--plum-dark);
+  border-color: var(--plum-dark);
+  color: #FFFFFF;
+  outline: none;
 }
 
 #chartFilterStatus,
@@ -2319,6 +2363,15 @@ html[data-theme="dark"] body.auth-page {
   color: var(--text);
 }
 
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .topnav a,
+html[data-theme="dark"] .topnav a:hover,
+html[data-theme="dark"] .topnav a:focus-visible,
+html[data-theme="dark"] .topnav a.active,
+html[data-theme="dark"] .topnav a.active:hover {
+  color: #FFFFFF !important;
+}
+
 html[data-theme="dark"] .auth-container,
 html[data-theme="dark"] .login-container,
 html[data-theme="dark"] .signup-container,
@@ -2369,6 +2422,7 @@ html[data-theme="dark"] .sensor-table th {
 html[data-theme="dark"] .sensor-table td,
 html[data-theme="dark"] .sensor-table th {
   border-color: var(--border);
+  color: #FFFFFF !important;
 }
 
 html[data-theme="dark"] .sensor-table tbody tr:hover {
@@ -2383,6 +2437,25 @@ html[data-theme="dark"] .recommendation-category {
   color: #70c9ef !important;
 }
 
+html[data-theme="dark"] .dashboard-page .chart-panel .panel-heading h2 {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .dashboard-page .recommendation-preview h3,
+html[data-theme="dark"] .dashboard-page .recommendation-preview > p {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .recommendations-page .recommendation-card,
+html[data-theme="dark"] .recommendations-page .recommendation-card h3,
+html[data-theme="dark"] .recommendations-page .recommendation-card p,
+html[data-theme="dark"] .recommendations-page .recommendation-card span,
+html[data-theme="dark"] .recommendations-page .recommendation-card strong,
+html[data-theme="dark"] .recommendations-page .recommendation-card summary,
+html[data-theme="dark"] .recommendations-page .recommendation-card li {
+  color: #FFFFFF !important;
+}
+
 html[data-theme="dark"] .dashboard-update,
 html[data-theme="dark"] .weather-details dt,
 html[data-theme="dark"] .api-note,
@@ -2395,6 +2468,23 @@ html[data-theme="dark"] .recommendation-evaluation-list,
 html[data-theme="dark"] .decision-status,
 html[data-theme="dark"] .app-dialog p {
   color: #b8c5d6 !important;
+}
+
+html[data-theme="dark"] .weather-panel .panel-heading p {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .sensor-chart-panel .panel-heading h2 {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .sensor-chart-panel .panel-heading p {
+  color: #FFFFFF !important;
+}
+
+html[data-theme="dark"] .sensor-table-panel .panel-heading h2,
+html[data-theme="dark"] .sensor-table-panel .panel-heading p {
+  color: #FFFFFF !important;
 }
 
 html[data-theme="dark"] .recommendation-evidence-value {
@@ -2657,6 +2747,10 @@ html[data-theme="dark"] body.auth-page #loginForm input::placeholder {
   color: #A8ABB5 !important;
 }
 
+html[data-theme="light"] body.auth-page #signupForm #passwordRequirementsTitle {
+  color: #222222 !important;
+}
+
 html[data-theme="dark"] body.auth-page #loginForm .captcha-challenge,
 html[data-theme="dark"] body.auth-page #loginForm .captcha-refresh {
   border-color: #3A3D48 !important;
@@ -2672,31 +2766,7 @@ html[data-theme="dark"] .topbar .topbar-wordmark {
   color: #FFFFFF !important;
 }
 
-/* Microsoft Entra authentication and role UI */
-.entra-login-card {
-  gap: 1rem;
-  text-align: center;
-}
-
-.auth-provider-label {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.microsoft-signin-button {
-  width: 100%;
-  margin-top: 0.5rem;
-}
-
-.auth-security-note {
-  margin: 0;
-  font-size: 0.85rem;
-  opacity: 0.75;
-}
-
+/* Email authentication and role UI */
 .auth-role-badge {
   display: inline-flex;
   align-items: center;
@@ -2718,4 +2788,28 @@ html[data-theme="dark"] .topbar .topbar-wordmark {
 
 [hidden] {
   display: none !important;
+}
+
+.auth-security-note {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.auth-form button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+
+.auth-switch-link {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.auth-switch-link a {
+  font-weight: 700;
 }

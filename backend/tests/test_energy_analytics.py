@@ -1,3 +1,5 @@
+"""Energy analytics endpoint tests for direct power and cumulative meters."""
+
 from datetime import datetime
 
 from fastapi.testclient import TestClient

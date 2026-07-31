@@ -1,7 +1,9 @@
+"""Operator-only route that exposes explainable recommendations."""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from backend.app.auth import CurrentUser, viewer_or_operator
+from backend.app.auth import CurrentUser, operator_only
 
 from ..database import get_db
 from ..recommendation_service import evaluate_recommendations
@@ -17,7 +19,7 @@ router = APIRouter(
 @router.get("", response_model=RecommendationServiceResponse)
 def get_recommendations(
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(viewer_or_operator),
+    user: CurrentUser = Depends(operator_only),
 ) -> dict:
-    """Return recommendations to assigned Viewers and Operators."""
+    """Return recommendations only to authenticated Operators."""
     return evaluate_recommendations(db)

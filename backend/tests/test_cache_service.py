@@ -1,3 +1,5 @@
+"""Redis JSON cache behavior tests."""
+
 from datetime import datetime
 
 import fakeredis

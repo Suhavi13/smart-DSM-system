@@ -1,3 +1,5 @@
+"""Copy rows marked as selected into a separate workbook sheet."""
+
 import pandas as pd
 
 file = "../docs/Sensor_Inventory.xlsx"

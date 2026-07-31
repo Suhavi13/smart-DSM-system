@@ -1,3 +1,5 @@
+"""Database engine, SQLAlchemy base class, and request-scoped sessions."""
+
 from pathlib import Path
 import os
 

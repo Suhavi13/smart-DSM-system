@@ -1,3 +1,5 @@
+"""Dashboard endpoint cache behavior tests."""
+
 from datetime import datetime
 
 import fakeredis

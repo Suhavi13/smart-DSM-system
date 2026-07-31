@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Viewer account | GBTAC</title>
+    <!-- Load the saved theme before CSS so dark/light mode appears immediately. -->
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
+    <link rel="stylesheet" href="styles.css?v=viewer-signup-1" />
+  </head>
+  <body class="auth-page">
+    <!-- Authentication header shared by sign-in and signup pages. -->
+    <header class="topbar auth-topbar">
+      <div class="topbar-title">
+        <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
+      </div>
+      <button
+        type="button"
+        class="theme-toggle"
+        data-theme-toggle
+        aria-label="Switch to dark mode"
+      >
+        <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+        <span class="theme-toggle-label">Dark mode</span>
+      </button>
+    </header>
+
+    <main class="auth-container">
+      <!-- Signup form layout; signup.js handles password checks and submission. -->
+      <form id="signupForm" class="auth-form" aria-labelledby="signupHeading">
+        <h1 id="signupHeading" class="login-heading">Create account</h1>
+
+        <!-- Basic account details. -->
+        <label for="displayName">Full name</label>
+        <input
+          id="displayName"
+          name="displayName"
+          type="text"
+          autocomplete="name"
+          maxlength="150"
+          placeholder="Your name"
+          required
+          autofocus
+        />
+
+        <label for="email">Email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          maxlength="320"
+          placeholder="name@example.com"
+          required
+        />
+
+        <label for="password">Password</label>
+        <div class="password-field">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            maxlength="1024"
+            placeholder="At least 8 characters"
+            aria-describedby="passwordRequirementsTitle passwordRequirements"
+            required
+          />
+          <!-- Press and hold the eye icon to reveal the password temporarily. -->
+          <button
+            type="button"
+            class="password-toggle"
+            data-password-toggle
+            data-target="password"
+            aria-label="Show password"
+          >
+            &#128065;
+          </button>
+        </div>
+
+        <!-- Live checklist updated as the password meets each requirement. -->
+        <p id="passwordRequirementsTitle" class="requirements-title">
+          Password requirements
+        </p>
+        <ul
+          id="passwordRequirements"
+          class="password-requirements password-checklist"
+        >
+          <li data-password-rule="length">
+            <span>Minimum 8 characters long.</span>
+          </li>
+          <li data-password-rule="uppercase">
+            <span>Includes uppercase letter.</span>
+          </li>
+          <li data-password-rule="lowercase">
+            <span>Includes lowercase letter.</span>
+          </li>
+          <li data-password-rule="number">
+            <span>Includes number.</span>
+          </li>
+          <li data-password-rule="special">
+            <span>Includes special character.</span>
+          </li>
+          <li data-password-rule="spaces">
+            <span>No spaces.</span>
+          </li>
+        </ul>
+
+        <label for="confirmPassword">Confirm password</label>
+        <div class="password-field">
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            maxlength="1024"
+            aria-describedby="passwordRequirements"
+            placeholder="Confirm password"
+            required
+          />
+          <!-- Same hold-to-reveal behavior for the confirmation field. -->
+          <button
+            type="button"
+            class="password-toggle"
+            data-password-toggle
+            data-target="confirmPassword"
+            aria-label="Show password"
+          >
+            &#128065;
+          </button>
+        </div>
+
+        <button id="signupButton" type="submit" class="btn btn-primary">
+          Create Viewer account
+        </button>
+
+        <!-- Live status text used for validation errors and redirect messages. -->
+        <p id="signupStatus" class="validation-message" role="status"></p>
+        <p class="auth-security-note">
+          Operator access cannot be selected during registration.
+        </p>
+        <p class="auth-switch-link">
+          Already registered? <a href="index.html">Sign in</a>
+        </p>
+      </form>
+    </main>
+
+    <footer class="site-footer auth-footer"></footer>
+    <!-- Shared theme script first, then signup page behavior. -->
+    <script src="config.js?v=viewer-signup-2"></script>
+    <script type="module" src="script.js?v=viewer-signup-2"></script>
+    <script type="module" src="signup.js?v=viewer-signup-2"></script>
+  </body>
+</html>

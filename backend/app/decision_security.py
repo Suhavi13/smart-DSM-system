@@ -1,3 +1,5 @@
+"""Temporary decision-write guard kept for older non-production scripts."""
+
 import os
 import secrets
 from pathlib import Path

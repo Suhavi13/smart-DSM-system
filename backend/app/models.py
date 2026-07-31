@@ -1,3 +1,5 @@
+"""SQLAlchemy tables for users, sensors, readings, and recommendation decisions."""
+
 from datetime import datetime
 from typing import Optional, Any
 
@@ -12,12 +14,92 @@ from sqlalchemy import (
     UniqueConstraint,
     CheckConstraint,
     JSON,
-    Text,
-    func
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
+
+
+class AppUser(Base):
+    __tablename__ = "app_users"
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('Viewer', 'Operator')",
+            name="ck_app_users_role",
+        ),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(320),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    display_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
+    )
+
+    password_hash: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="Viewer",
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+
+    failed_login_attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 
 class SensorPoint(Base):

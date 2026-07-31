@@ -1,3 +1,5 @@
+"""OpenRouter helper for optional AI-written recommendation text."""
+
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -11,6 +13,7 @@ client = OpenAI(
 
 
 def generate_recommendation(weather, predicted_power):
+    """Ask the configured model for one short building recommendation."""
     response = client.chat.completions.create(
         model="qwen/qwen3-8b",
         messages=[

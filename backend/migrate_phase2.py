@@ -1,3 +1,5 @@
+"""Create read-performance indexes used by dashboard sensor queries."""
+
 from sqlalchemy import text
 
 from backend.app.database import engine

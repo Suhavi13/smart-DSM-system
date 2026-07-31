@@ -1,9 +1,15 @@
+"""Operator-only routes for approving or rejecting recommendations."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from backend.app.auth import CurrentUser, operator_only, viewer_or_operator
+from backend.app.auth import (
+    CurrentUser,
+    operator_only,
+    require_csrf,
+)
 
 from ..database import get_db
 from ..models import RecommendationDecision
@@ -39,6 +45,7 @@ def create_decision(
         ),
     ],
     db: Session = Depends(get_db),
+    _: None = Depends(require_csrf),
     user: CurrentUser = Depends(operator_only),
 ) -> RecommendationDecision:
     existing_idempotent_request = (
@@ -94,7 +101,7 @@ def create_decision(
 def list_decisions(
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(viewer_or_operator),
+    user: CurrentUser = Depends(operator_only),
 ) -> list[RecommendationDecision]:
     return (
         db.query(RecommendationDecision)

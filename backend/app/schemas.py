@@ -1,3 +1,5 @@
+"""Pydantic response and request models for the public API contract."""
+
 from datetime import datetime
 from typing import Optional, Any, Literal
 

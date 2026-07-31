@@ -1,13 +1,22 @@
+"""FastAPI application, dashboard endpoints, CORS, and static frontend hosting."""
+
+from contextlib import asynccontextmanager
 from datetime import datetime
 import os
+from pathlib import Path
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from .auth import CurrentUser, viewer_or_operator
+from .auth import (
+    CurrentUser,
+    bootstrap_user_from_environment,
+    viewer_or_operator,
+)
 from .cache_service import cache
 from .dashboard_sensors import (
     ENERGY_CONSUMPTION_SENSOR_CODE,
@@ -15,7 +24,7 @@ from .dashboard_sensors import (
     INDOOR_TEMPERATURE_SENSOR_CODES,
     INDOOR_WALL_TEMPERATURE_SENSOR_CODES,
 )
-from .database import get_db
+from .database import Base, SessionLocal, engine, get_db
 from .models import SensorPoint, SensorReading
 from .schemas import (
     DashboardOverviewResponse,
@@ -44,9 +53,24 @@ from backend.app.routers import auth
 
 ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # create_all only creates missing tables; it does not delete or rewrite the
+    # existing sensor/decision tables. This ensures app_users exists on deploy.
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bootstrap_user_from_environment(db)
+    finally:
+        db.close()
+    yield
+
+
 app = FastAPI(
     title="GBTAC Sensor Data Service",
     version="0.6.0",
+    lifespan=lifespan,
     description=(
         "Read-only API for the full historical GBTAC sensor inventory, "
         "Redis-cached dashboard aggregation, and normalized external "
@@ -58,23 +82,26 @@ app.include_router(decisions_router)
 app.include_router(recommendations_router)
 app.include_router(auth.router)
 
+frontend_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "FRONTEND_ORIGINS",
+        "http://localhost:5500,http://localhost:5501,http://localhost:5173,http://127.0.0.1:5500,http://127.0.0.1:5501,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        # "http://127.0.0.1:8081",
-        # "http://localhost:8081",
-        # "http://127.0.0.1:5500",
-        # "http://127.0.0.1:5501",
-        "http://localhost:5500",
-        "http://localhost:5501",
-    ],
-    allow_credentials=False,
+    allow_origins=frontend_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
         "Accept",
         "Content-Type",
         "Authorization",
         "Idempotency-Key",
+        "X-CSRF-Token",
     ],
     expose_headers=["X-Cache"],
 )
@@ -691,3 +718,20 @@ def get_dashboard_overview(
     )
     response.headers["X-Cache"] = "MISS" if cached else "BYPASS"
     return payload
+
+# For the quickest and most reliable deployment, serve the static frontend
+# from the same origin as the API. Set SERVE_FRONTEND=false only when using a
+# separate frontend host and configure FRONTEND_ORIGINS/cookie settings.
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+if SERVE_FRONTEND and FRONTEND_DIR.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=FRONTEND_DIR, html=True),
+        name="frontend",
+    )

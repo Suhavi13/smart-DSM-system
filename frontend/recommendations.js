@@ -1,8 +1,10 @@
+// Renders recommendation cards from the backend recommendation service.
 import { apiGet } from "./api.js";
 
 (() => {
   "use strict";
 
+  // Main page targets where recommendation cards and summary text appear.
   const recommendationList = document.getElementById("recommendationList");
   const recommendationSummary = document.getElementById("recommendationSummary");
   const recommendationNotice = document.getElementById("recommendationDataNotice");
@@ -11,6 +13,7 @@ import { apiGet } from "./api.js";
     return;
   }
 
+  // Escapes text before placing it inside generated HTML.
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -20,6 +23,7 @@ import { apiGet } from "./api.js";
       .replaceAll("'", "&#039;");
   }
 
+  // Formats evidence numbers with readable units for the card display.
   function formatEvidenceValue(evidence) {
     const numericValue = Number(evidence.value);
     if (!Number.isFinite(numericValue)) {
@@ -32,6 +36,7 @@ import { apiGet } from "./api.js";
     })} ${evidence.unit || ""}`.trim();
   }
 
+  // Converts recommendation timestamps into local date/time text.
   function formatTimestamp(timestamp) {
     if (!timestamp) {
       return "Timestamp unavailable";
@@ -45,6 +50,7 @@ import { apiGet } from "./api.js";
     return parsed.toLocaleString();
   }
 
+  // Builds the evidence list shown inside the expandable card section.
   function renderEvidence(evidenceItems) {
     return evidenceItems
       .map(
@@ -76,6 +82,7 @@ import { apiGet } from "./api.js";
       .join("");
   }
 
+  // Builds one recommendation card with title, priority, reason, evidence, and actions.
   function renderRecommendation(recommendation) {
     return `
       <article
@@ -134,7 +141,7 @@ import { apiGet } from "./api.js";
           )}</strong></span>
         </div>
 
-        <div class="recommendation-actions" data-operator-only>
+        <div class="recommendation-actions" data-operator-only hidden>
           <button
             type="button"
             class="btn recommendation-approve recommendation-action"
@@ -156,6 +163,7 @@ import { apiGet } from "./api.js";
     `;
   }
 
+  // Shows a friendly empty state when no recommendation rules are triggered.
   function renderNoRecommendations(data) {
     const evaluationItems = (data.evaluations || [])
       .map(
@@ -177,6 +185,7 @@ import { apiGet } from "./api.js";
     `;
   }
 
+  // Loads recommendation data and replaces the loading text with visible cards.
   async function loadRecommendations() {
     recommendationList.innerHTML = `
       <p class="recommendation-loading" role="status">
@@ -223,5 +232,13 @@ import { apiGet } from "./api.js";
     }
   }
 
-  loadRecommendations();
+  document.addEventListener("authentication:ready", (event) => {
+    if (event.detail?.isOperator) {
+      loadRecommendations();
+    }
+  });
+
+  if (window.APP_USER?.isOperator) {
+    loadRecommendations();
+  }
 })();

@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <!-- Recommendation page metadata and persistent theme initialization -->
-    <!-- Recommendation page metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GBTAC recommendations</title>
@@ -18,8 +17,7 @@
     </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <!-- Shared application header and primary navigation -->
+  <body data-required-role="Operator">
     <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">
@@ -46,8 +44,8 @@
     </header>
 
     <!-- Explainable building recommendations loaded from the backend -->
-    <!-- Explainable building recommendations loaded from the backend -->
     <main class="page-layout recommendations-page">
+      <!-- Page heading and summary text update when recommendations load. -->
       <section class="dashboard-heading">
         <div>
           <!-- <p class="dashboard-eyebrow">Phase 5 recommendation service</p> -->
@@ -58,15 +56,12 @@
         </div>
       </section>
 
-      <p class="recommendation-data-notice" data-viewer-only hidden>
-        Viewer access: recommendations can be reviewed, but only Operators can
-        approve or reject them.
-      </p>
-
+      <!-- Notice area explains what data source the recommendation cards use. -->
       <p id="recommendationDataNotice" class="recommendation-data-notice">
         Sensor evidence is loaded from the recommendation API.
       </p>
 
+      <!-- recommendations.js replaces this loading message with cards. -->
       <section
         id="recommendationList"
         class="recommendation-list"
@@ -79,13 +74,12 @@
     </main>
 
     <!-- Shared footer and recommendation decision scripts -->
-    <!-- Shared footer and recommendation decision scripts -->
     <footer class="site-footer"><p></p></footer>
     <script src="config.js?v=6"></script>
     <script type="module" src="api.js?v=6"></script>
     <script type="module" src="script.js?v=6"></script>
     <script type="module" src="recommendations.js?v=6"></script>
     <script type="module" src="decisions.js?v=6"></script>
-    <script type="module" src="auth-ui.js?v=entra-auth-1"></script>
+    <script type="module" src="auth-ui.js?v=viewer-signup-1"></script>
   </body>
 </html>

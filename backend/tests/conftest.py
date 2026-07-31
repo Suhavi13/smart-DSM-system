@@ -1,3 +1,5 @@
+"""Shared in-memory database and authenticated client fixtures for tests."""
+
 from collections.abc import Generator
 import os
 

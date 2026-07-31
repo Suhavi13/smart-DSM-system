@@ -1,3 +1,5 @@
+"""Import selected historical sensor readings from the merged CSV into PostgreSQL."""
+
 import os
 from pathlib import Path
 
@@ -19,6 +21,7 @@ INVALID_ABSOLUTE_VALUE = float(os.getenv("INVALID_ABSOLUTE_VALUE", "1e12"))
 
 
 def insert_rows_in_batches(db, rows_to_insert):
+    """Insert rows without duplicating readings that already exist."""
     total_inserted = 0
 
     for start in range(0, len(rows_to_insert), INSERT_BATCH_SIZE):

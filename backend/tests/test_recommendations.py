@@ -1,3 +1,5 @@
+"""Recommendation rule and API tests."""
+
 from datetime import datetime
 
 from fastapi.testclient import TestClient

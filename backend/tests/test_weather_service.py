@@ -1,3 +1,5 @@
+"""Weather normalization, caching, and endpoint tests."""
+
 from fastapi.testclient import TestClient
 
 from backend.app import main

@@ -1,3 +1,5 @@
+"""Shared sensor scaling and time-bucket aggregation helpers."""
+
 from collections import defaultdict
 from datetime import datetime
 from typing import Literal

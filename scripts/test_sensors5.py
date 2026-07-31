@@ -1,3 +1,5 @@
+"""Preview a small set of sensor columns from the merged CSV."""
+
 import pandas as pd
 
 df = pd.read_csv(

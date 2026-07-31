@@ -1,3 +1,5 @@
+"""Sensor list and reading endpoint tests."""
+
 from datetime import datetime
 
 from fastapi.testclient import TestClient

@@ -1,3 +1,5 @@
+"""Import the confirmed sensor inventory spreadsheet into PostgreSQL."""
+
 from pathlib import Path
 
 import pandas as pd
@@ -15,12 +17,14 @@ SHEET_NAME = "Sheet1"
 
 
 def clean_text(value):
+    """Normalize optional spreadsheet text values."""
     if pd.isna(value):
         return None
     return str(value).strip()
 
 
 def clean_integer(value):
+    """Normalize optional spreadsheet integer values."""
     if pd.isna(value):
         return None
     return int(value)

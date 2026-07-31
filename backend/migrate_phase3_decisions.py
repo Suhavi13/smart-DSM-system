@@ -1,3 +1,5 @@
+"""Create the recommendation decision table when running older databases."""
+
 from backend.app.database import engine
 from backend.app.models import RecommendationDecision
 

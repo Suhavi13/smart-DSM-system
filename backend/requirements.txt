@@ -9,3 +9,6 @@ pydantic
 httpx
 redis>=5.0,<7.0
 PyJWT[crypto]
+argon2-cffi
+openai>=1.0,<3.0
+gunicorn

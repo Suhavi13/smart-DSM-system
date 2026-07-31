@@ -1,3 +1,4 @@
+// Loads live backend data and passes it into the dashboard and sensor views.
 import { apiGet } from "./api.js";
 import {
   renderSensors,
@@ -798,5 +799,13 @@ if (document.getElementById("weatherForecastChart")) {
 }
 
 if (document.getElementById("dashboardRecommendationTitle")) {
-  loadRecommendationPreview();
+  document.addEventListener("authentication:ready", (event) => {
+    if (event.detail?.isOperator) {
+      loadRecommendationPreview();
+    }
+  });
+
+  if (window.APP_USER?.isOperator) {
+    loadRecommendationPreview();
+  }
 }

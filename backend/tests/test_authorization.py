@@ -1,3 +1,5 @@
+"""Authorization tests for Viewer and unauthenticated access."""
+
 from fastapi.testclient import TestClient
 
 from backend.app.auth import CurrentUser, get_current_user

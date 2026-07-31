@@ -1,18 +1,4 @@
-# import pandas as pd
-
-# df = pd.read_csv("../data/merged_timeseries_student.csv")
-
-# top_sensors = [
-#     "SaitSolarLab_30000_TL2",
-#     "SaitSolarLab_30000_TL4",
-#     "SaitSolarLab_30000_TL252",
-#     "SaitSolarLab_30000_TL253"
-# ]
-
-# for sensor in top_sensors:
-#     print("\n")
-#     print(sensor)
-#     print(df[sensor].describe())
+"""Print uniqueness counts for a few high-interest sensor columns."""
 
 import pandas as pd
 

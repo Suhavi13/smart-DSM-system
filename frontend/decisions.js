@@ -1,8 +1,10 @@
+// Saves Operator approve/reject decisions for recommendation cards.
 import { apiRequest } from "./api.js";
 
 (() => {
   "use strict";
 
+  // Creates a unique key so repeated clicks do not save duplicate decisions.
   function createIdempotencyKey() {
     if (
       window.crypto &&
@@ -18,6 +20,7 @@ import { apiRequest } from "./api.js";
     );
   }
 
+  // Captures the visible recommendation text before an approve/reject decision.
   function getCardSnapshot(card) {
     const title =
       card.querySelector(".recommendation-title, h2, h3")
@@ -37,6 +40,7 @@ import { apiRequest } from "./api.js";
     return { title, description, reason, priority, evidence };
   }
 
+  // Writes inline feedback at the bottom of a recommendation card.
   function setCardStatus(card, message, isError = false) {
     const statusElement = card.querySelector(".decision-status");
     if (!statusElement) {
@@ -47,6 +51,7 @@ import { apiRequest } from "./api.js";
     statusElement.classList.toggle("error-message", isError);
   }
 
+  // Locks decision buttons after a decision is saved.
   function disableDecisionButtons(card) {
     card
       .querySelectorAll("[data-decision-action]")
@@ -55,6 +60,7 @@ import { apiRequest } from "./api.js";
       });
   }
 
+  // Updates the card UI after an approval or rejection is stored.
   function markSavedDecision(card, decision) {
     card.dataset.savedDecision = decision.action;
     card.classList.toggle("is-approved", decision.action === "approved");
@@ -81,6 +87,7 @@ import { apiRequest } from "./api.js";
     disableDecisionButtons(card);
   }
 
+  // Handles one approve/reject button click from the recommendation card.
   async function submitDecision(button) {
     const card = button.closest("[data-recommendation-id]");
 
@@ -164,6 +171,7 @@ import { apiRequest } from "./api.js";
     }
   }
 
+  // Restores previously saved decisions after recommendation cards render.
   async function restoreSavedDecisions() {
     try {
       const response = await apiRequest("/decisions?limit=500", {

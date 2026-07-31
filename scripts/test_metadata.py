@@ -1,10 +1,4 @@
-# import pandas as pd
-
-# df = pd.read_csv("../data/merged_timeseries_student.csv")
-
-# print(df.head())
-# print(df.columns)
-# print(df.shape)
+"""Print basic metadata about the merged sensor CSV."""
 
 import pandas as pd
 

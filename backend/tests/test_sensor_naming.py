@@ -1,3 +1,5 @@
+"""Sensor naming and metadata inference tests."""
+
 from backend.app.sensor_naming import (
     infer_inventory_identity,
     parse_directional_label,

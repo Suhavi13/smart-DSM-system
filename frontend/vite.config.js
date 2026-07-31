@@ -1,3 +1,4 @@
+// Local frontend dev server settings.
 import { defineConfig } from "vite";
 
 export default defineConfig({

@@ -1,3 +1,5 @@
+"""Dashboard energy-consumption response tests."""
+
 from datetime import datetime
 
 from fastapi.testclient import TestClient

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in | GBTAC</title>
+    <script>
+      document.documentElement.dataset.theme =
+        localStorage.getItem("gbtacTheme") ||
+        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
+    <script type="module" crossorigin src="/assets/index-Itj93KPV.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CHHbO8Rv.css">
+  </head>
+  <body class="auth-page">
+    <header class="topbar auth-topbar">
+      <div class="topbar-title">
+        <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
+      </div>
+      <button
+        type="button"
+        class="theme-toggle"
+        data-theme-toggle
+        aria-label="Switch to dark mode"
+      >
+        <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+        <span class="theme-toggle-label">Dark mode</span>
+      </button>
+    </header>
+
+    <main class="auth-container">
+      <form id="loginForm" class="auth-form" aria-labelledby="loginHeading">
+        <h1 id="loginHeading" class="login-heading">Welcome</h1>
+        <p class="auth-subtitle">
+          Sign in with the email and password you chose.
+        </p>
+
+        <label for="email">Email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="username"
+          maxlength="320"
+          placeholder="name@example.com"
+          required
+          autofocus
+        />
+
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          maxlength="1024"
+          placeholder="Enter your password"
+          required
+        />
+
+        <button id="loginButton" type="submit" class="btn btn-primary">
+          Sign in
+        </button>
+
+        <p id="loginStatus" class="validation-message" role="status"></p>
+        <p class="auth-security-note">
+          New users are automatically registered as Viewers.
+        </p>
+        <p class="auth-switch-link">
+          Need an account? <a href="signup.html">Create a Viewer account</a>
+        </p>
+      </form>
+    </main>
+
+    <footer class="site-footer auth-footer"></footer>
+    <script src="config.js?v=viewer-signup-1"></script>
+  </body>
+</html>
