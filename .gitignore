@@ -14,3 +14,6 @@ backend/.venv/
 services/**/.venv/
 
 frontend/node_modules/
+
+__pycache__/
+*.pyc
