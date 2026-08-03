@@ -197,6 +197,11 @@ function initializeSensorChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      font: {
+        family: 'Arial, Helvetica, sans-serif',
+        size: 12,
+        lineHeight: 1.2,
+      },
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false }, border: { display: false } },

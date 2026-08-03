@@ -15,7 +15,7 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=uniform-nav-buttons-1" />
   </head>
   <body>
     <!-- Shared application header and primary navigation -->
@@ -24,9 +24,9 @@
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
       </div>
       <nav class="topnav" aria-label="Primary navigation">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="sensors.html" class="active">Sensors</a>
-        <a href="recommendations.html" data-operator-only hidden>Recommendations</a>
+        <a href="dashboard.html" class="nav-button">Dashboard</a>
+        <a href="sensors.html" class="nav-button active">Sensors</a>
+        <a href="recommendations.html" class="nav-button" data-operator-only hidden>Recommendations</a>
         <button
           type="button"
           class="theme-toggle"
@@ -36,7 +36,7 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
+        <span class="auth-role-badge nav-button" data-auth-user-role>Loading role…</span>
         <button type="button" class="btn btn-secondary" data-sign-out>
           Log out
         </button>

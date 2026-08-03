@@ -1,5 +1,6 @@
 // Handles sign-in validation, captcha checks, and hold-to-reveal password input.
-import { getCurrentUser, signIn } from "./auth.js";
+// Load authentication separately so captcha generation always initializes.
+const authenticationModule = import("./auth.js?v=signin-captcha-1");
 
 // DOM references for the sign-in form and its interactive controls.
 const loginForm = document.getElementById("loginForm");
@@ -41,6 +42,7 @@ function generateCaptcha() {
     { length: captchaLength },
     randomCaptchaCharacter
   ).join("");
+  window.GBTAC_CAPTCHA_ANSWER = captchaAnswer;
 
   if (captchaChallenge) {
     captchaChallenge.textContent = captchaAnswer;
@@ -53,10 +55,11 @@ function generateCaptcha() {
 }
 
 function isCaptchaValid() {
-  if (!captchaInput || captchaAnswer === null) return true;
+  const expectedAnswer = captchaAnswer || window.GBTAC_CAPTCHA_ANSWER;
+  if (!captchaInput || !expectedAnswer) return true;
 
   const enteredValue = captchaInput.value.trim().toLowerCase();
-  return enteredValue !== "" && enteredValue === captchaAnswer;
+  return enteredValue !== "" && enteredValue === expectedAnswer;
 }
 
 // Finds which password input belongs to the clicked eye icon.
@@ -153,6 +156,7 @@ loginForm?.addEventListener("submit", async (event) => {
   setSubmitting(true);
 
   try {
+    const { signIn } = await authenticationModule;
     const user = await signIn(emailInput.value, passwordInput.value);
     setStatus(`Signed in as ${user.name}. Redirecting…`);
     window.location.replace("dashboard.html");
@@ -169,6 +173,7 @@ loginForm?.addEventListener("submit", async (event) => {
 // Already signed-in users should not stay on the sign-in page.
 async function redirectExistingSession() {
   try {
+    const { getCurrentUser } = await authenticationModule;
     const user = await getCurrentUser();
     if (user) {
       window.location.replace("dashboard.html");

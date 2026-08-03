@@ -1,5 +1,7 @@
 // Handles signup validation, password checklist updates, and account creation.
-import { getCurrentUser, signUp } from "./auth.js?v=viewer-signup-2";
+// Load authentication separately so checklist validation still initializes if
+// the API configuration or authentication service is temporarily unavailable.
+const authenticationModule = import("./auth.js?v=signup-checklist-1");
 
 // DOM references for the signup form and password checklist.
 const signupForm = document.getElementById("signupForm");
@@ -63,8 +65,17 @@ function updatePasswordRequirements() {
   passwordRequirementItems.forEach((item) => {
     const rule = item.dataset.passwordRule;
     const isValid = Boolean(state[rule]);
+    let tick = item.querySelector(".requirement-tick");
+
+    if (!tick) {
+      tick = document.createElement("span");
+      tick.className = "requirement-tick";
+      tick.setAttribute("aria-hidden", "true");
+      item.prepend(tick);
+    }
 
     item.classList.toggle("is-valid", isValid);
+    tick.textContent = isValid ? "✓" : "";
   });
 
   if (passwordInput) {
@@ -202,6 +213,7 @@ signupForm?.addEventListener("submit", async (event) => {
   setSubmitting(true);
 
   try {
+    const { signUp } = await authenticationModule;
     const user = await signUp(
       nameInput.value,
       emailInput.value,
@@ -219,6 +231,7 @@ signupForm?.addEventListener("submit", async (event) => {
 // Already signed-in users should not stay on the signup page.
 async function redirectExistingSession() {
   try {
+    const { getCurrentUser } = await authenticationModule;
     const user = await getCurrentUser();
     if (user) {
       window.location.replace("dashboard.html");

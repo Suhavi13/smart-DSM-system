@@ -60,6 +60,59 @@ import { apiRequest } from "./api.js";
       });
   }
 
+  // Shows an accessible in-page confirmation before saving a decision.
+  function confirmDecision(action) {
+    return new Promise((resolve) => {
+      const isApproval = action === "approved";
+      const actionLabel = isApproval ? "approve" : "reject";
+      const overlay = document.createElement("div");
+      overlay.className = "app-dialog-overlay";
+      overlay.innerHTML = `
+        <section
+          class="app-dialog ${isApproval ? "app-dialog-approve" : "app-dialog-reject"}"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="decisionDialogTitle"
+          aria-describedby="decisionDialogMessage"
+        >
+          <span class="app-dialog-icon" aria-hidden="true">${isApproval ? "✓" : "!"}</span>
+          <h2 id="decisionDialogTitle">${isApproval ? "Approve" : "Reject"} recommendation?</h2>
+          <p id="decisionDialogMessage">Do you want to ${actionLabel} this recommendation?</p>
+          <div class="app-dialog-actions">
+            <button type="button" class="btn app-dialog-confirm">Yes</button>
+            <button type="button" class="btn app-dialog-cancel">No</button>
+          </div>
+        </section>
+      `;
+
+      const confirmButton = overlay.querySelector(".app-dialog-confirm");
+      const cancelButton = overlay.querySelector(".app-dialog-cancel");
+
+      const closeDialog = (confirmed) => {
+        document.removeEventListener("keydown", handleKeydown);
+        overlay.remove();
+        resolve(confirmed);
+      };
+
+      const handleKeydown = (event) => {
+        if (event.key === "Escape") {
+          closeDialog(false);
+        }
+      };
+
+      confirmButton.addEventListener("click", () => closeDialog(true));
+      cancelButton.addEventListener("click", () => closeDialog(false));
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          closeDialog(false);
+        }
+      });
+      document.addEventListener("keydown", handleKeydown);
+      document.body.append(overlay);
+      confirmButton.focus();
+    });
+  }
+
   // Updates the card UI after an approval or rejection is stored.
   function markSavedDecision(card, decision) {
     card.dataset.savedDecision = decision.action;
@@ -114,12 +167,7 @@ import { apiRequest } from "./api.js";
       return;
     }
 
-    const confirmationText =
-      action === "approved"
-        ? "Approve this recommendation?"
-        : "Reject this recommendation?";
-
-    if (!window.confirm(confirmationText)) {
+    if (!(await confirmDecision(action))) {
       return;
     }
 

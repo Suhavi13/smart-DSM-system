@@ -15,7 +15,7 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=uniform-nav-buttons-1" />
   </head>
   <body data-required-role="Operator">
     <!-- Shared application header and primary navigation -->
@@ -24,9 +24,9 @@
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
       </div>
       <nav class="topnav" aria-label="Primary navigation">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="sensors.html">Sensors</a>
-        <a href="recommendations.html" class="active">Recommendations</a>
+        <a href="dashboard.html" class="nav-button">Dashboard</a>
+        <a href="sensors.html" class="nav-button">Sensors</a>
+        <a href="recommendations.html" class="nav-button active">Recommendations</a>
         <button
           type="button"
           class="theme-toggle"
@@ -36,7 +36,7 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
+        <span class="auth-role-badge nav-button" data-auth-user-role>Loading role…</span>
         <button type="button" class="btn btn-secondary" data-sign-out>
           Log out
         </button>
@@ -79,7 +79,7 @@
     <script type="module" src="api.js?v=6"></script>
     <script type="module" src="script.js?v=6"></script>
     <script type="module" src="recommendations.js?v=6"></script>
-    <script type="module" src="decisions.js?v=6"></script>
+    <script type="module" src="decisions.js?v=confirmation-dialog-1"></script>
     <script type="module" src="auth-ui.js?v=viewer-signup-1"></script>
   </body>
 </html>
