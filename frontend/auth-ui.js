@@ -47,6 +47,54 @@ function renderAuthenticationError(error) {
   main.replaceChildren(section);
 }
 
+function confirmSignOut() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "app-dialog-overlay";
+    overlay.innerHTML = `
+      <section
+        class="app-dialog app-dialog-reject"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Logout confirmation"
+        aria-describedby="signOutDialogMessage"
+      >
+        <p id="signOutDialogMessage">Are you sure you want to log out?</p>
+        <div class="app-dialog-actions">
+          <button type="button" class="btn app-dialog-confirm">Yes</button>
+          <button type="button" class="btn app-dialog-cancel">No</button>
+        </div>
+      </section>
+    `;
+
+    const confirmButton = overlay.querySelector(".app-dialog-confirm");
+    const cancelButton = overlay.querySelector(".app-dialog-cancel");
+
+    const closeDialog = (confirmed) => {
+      document.removeEventListener("keydown", handleKeydown);
+      overlay.remove();
+      resolve(confirmed);
+    };
+
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") {
+        closeDialog(false);
+      }
+    };
+
+    confirmButton.addEventListener("click", () => closeDialog(true));
+    cancelButton.addEventListener("click", () => closeDialog(false));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        closeDialog(false);
+      }
+    });
+    document.addEventListener("keydown", handleKeydown);
+    document.body.append(overlay);
+    cancelButton.focus();
+  });
+}
+
 async function initializeProtectedPage() {
   try {
     const user = await requireSignedInUser();
@@ -69,10 +117,15 @@ async function initializeProtectedPage() {
   }
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-sign-out]");
   if (button) {
     event.preventDefault();
+
+    if (!await confirmSignOut()) {
+      return;
+    }
+
     signOut().catch((error) => console.error("Sign-out failed:", error));
   }
 });
