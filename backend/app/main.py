@@ -26,6 +26,8 @@ from .schemas import (
     DashboardOverviewResponse,
     EnergyConsumptionResponse,
     IndoorConditionsResponse,
+    SensorAverageRequest,
+    SensorAveragesResponse,
     SensorReadingsResponse,
     SensorSummaryResponse,
     WeatherForecastResponse,
@@ -251,6 +253,134 @@ def get_sensors(
         .all()
     )
     return [serialize_sensor(sensor) for sensor in sensors]
+
+
+@app.post(
+    "/api/v1/sensors/averages",
+    response_model=SensorAveragesResponse,
+)
+def calculate_sensor_averages(
+    request: SensorAverageRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(viewer_or_operator),
+):
+    """Calculate one historical average per selected inventory sensor."""
+    del user  # Authentication is enforced by the dependency.
+
+    if request.start and request.end and request.start > request.end:
+        raise HTTPException(
+            status_code=400,
+            detail="The start timestamp must be before the end timestamp.",
+        )
+
+    # Preserve the user's selection order while removing duplicates and blanks.
+    requested_codes = list(
+        dict.fromkeys(
+            code.strip() for code in request.sensorCodes if code.strip()
+        )
+    )
+    if not requested_codes:
+        raise HTTPException(
+            status_code=400,
+            detail="Select at least one sensor.",
+        )
+
+    sensors = (
+        db.query(SensorPoint)
+        .filter(
+            SensorPoint.is_selected.is_(True),
+            SensorPoint.sensor_code.in_(requested_codes),
+        )
+        .all()
+    )
+    sensors_by_code = {sensor.sensor_code: sensor for sensor in sensors}
+    ordered_sensors = [
+        sensors_by_code[code]
+        for code in requested_codes
+        if code in sensors_by_code
+    ]
+    missing_codes = [
+        code for code in requested_codes if code not in sensors_by_code
+    ]
+
+    aggregate_rows = {}
+    if ordered_sensors:
+        sensor_ids = [sensor.sensor_point_id for sensor in ordered_sensors]
+        aggregate_query = (
+            db.query(
+                SensorReading.sensor_point_id.label("sensor_point_id"),
+                func.count(SensorReading.value).label("reading_count"),
+                func.avg(SensorReading.value).label("average_value"),
+                func.min(SensorReading.value).label("minimum_value"),
+                func.max(SensorReading.value).label("maximum_value"),
+                func.min(SensorReading.reading_time).label("first_timestamp"),
+                func.max(SensorReading.reading_time).label("last_timestamp"),
+            )
+            .filter(
+                SensorReading.sensor_point_id.in_(sensor_ids),
+                SensorReading.value.isnot(None),
+            )
+        )
+
+        if request.start:
+            aggregate_query = aggregate_query.filter(
+                SensorReading.reading_time >= request.start
+            )
+        if request.end:
+            aggregate_query = aggregate_query.filter(
+                SensorReading.reading_time <= request.end
+            )
+
+        aggregate_rows = {
+            row.sensor_point_id: row
+            for row in aggregate_query.group_by(
+                SensorReading.sensor_point_id
+            ).all()
+        }
+
+    results = []
+    for sensor in ordered_sensors:
+        row = aggregate_rows.get(sensor.sensor_point_id)
+        raw_average = row.average_value if row is not None else None
+        raw_minimum = row.minimum_value if row is not None else None
+        raw_maximum = row.maximum_value if row is not None else None
+
+        scaled_average = scale_value(sensor, raw_average)
+        scaled_limits = [
+            value
+            for value in (
+                scale_value(sensor, raw_minimum),
+                scale_value(sensor, raw_maximum),
+            )
+            if value is not None
+        ]
+
+        results.append(
+            {
+                "sensorPointId": sensor.sensor_point_id,
+                "sensorCode": sensor.sensor_code,
+                "displayName": sensor.display_name,
+                "category": sensor.category,
+                "displayUnit": sensor.display_unit or sensor.raw_unit,
+                "location": sensor.location,
+                "readingCount": int(row.reading_count) if row else 0,
+                "averageValue": scaled_average,
+                "minimumValue": min(scaled_limits) if scaled_limits else None,
+                "maximumValue": max(scaled_limits) if scaled_limits else None,
+                "firstTimestamp": row.first_timestamp if row else None,
+                "lastTimestamp": row.last_timestamp if row else None,
+            }
+        )
+
+    return {
+        "datasetType": "historical",
+        "start": request.start,
+        "end": request.end,
+        "requestedSensorCount": len(requested_codes),
+        "returnedSensorCount": len(results),
+        "missingSensorCodes": missing_codes,
+        "sensors": results,
+    }
 
 
 @app.get(

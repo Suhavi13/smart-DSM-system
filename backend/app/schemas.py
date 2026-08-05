@@ -51,6 +51,37 @@ class SensorSummaryResponse(BaseModel):
     latestTimestamp: Optional[datetime] = None
 
 
+class SensorAverageRequest(BaseModel):
+    sensorCodes: list[str] = Field(min_length=1, max_length=123)
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+
+
+class SensorAverageItemResponse(BaseModel):
+    sensorPointId: int
+    sensorCode: str
+    displayName: str
+    category: Optional[str] = None
+    displayUnit: Optional[str] = None
+    location: Optional[str] = None
+    readingCount: int
+    averageValue: Optional[float] = None
+    minimumValue: Optional[float] = None
+    maximumValue: Optional[float] = None
+    firstTimestamp: Optional[datetime] = None
+    lastTimestamp: Optional[datetime] = None
+
+
+class SensorAveragesResponse(BaseModel):
+    datasetType: str = "historical"
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+    requestedSensorCount: int
+    returnedSensorCount: int
+    missingSensorCodes: list[str] = Field(default_factory=list)
+    sensors: list[SensorAverageItemResponse]
+
+
 class ReadingPointResponse(BaseModel):
     timestamp: datetime
     value: Optional[float] = None

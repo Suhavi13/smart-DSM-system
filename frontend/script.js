@@ -70,36 +70,9 @@ export function setBuildingSensors(nextSensors) {
   buildingSensors = Array.isArray(nextSensors) ? nextSensors : [];
 }
 
-const sensors = [
-  {
-    name: 'Temperature Sensor',
-    value: '72°F',
-    status: 'Normal',
-    updated: '2 min ago',
-  },
-  {
-    name: 'Airflow Sensor',
-    value: '650 CFM',
-    status: 'Warning',
-    updated: '5 min ago',
-  },
-  {
-    name: 'Damper Position Sensor',
-    value: '65%',
-    status: 'Critical',
-    updated: '1 min ago',
-  },
-  {
-    name: 'Return Air Sensor',
-    value: '68°F',
-    status: 'Normal',
-    updated: '3 min ago',
-  },
-];
-
 function getBadgeClass(status) {
   if (status === "Readings imported") return "badge badge-normal";
-  if (status === "No data") return "badge badge-warning";
+  if (status === "No imported readings") return "badge badge-warning";
   if (status === "Online") return "badge badge-normal";
   if (status === "Offline") return "badge badge-critical";
   if (status === "Warning") return "badge badge-warning";
@@ -159,7 +132,7 @@ function updateSensorSummary() {
 
   if (offlineSensors) {
     offlineSensors.textContent = buildingSensors.filter(
-      (sensor) => sensor.status === "No data"
+      (sensor) => sensor.status === "No imported readings"
     ).length;
   }
 
@@ -173,46 +146,6 @@ function updateSensorSummary() {
 if (currentYear) {
   currentYear.textContent = new Date().getFullYear();
 }
-
-// Render the sample temperature chart when Chart.js is available.
-function initializeSensorChart() {
-  const sensorTrendCanvas = document.getElementById('sensorTrendChart');
-  if (typeof Chart === 'undefined' || !sensorTrendCanvas) return;
-
-  new Chart(sensorTrendCanvas, {
-    type: 'line',
-    data: {
-      labels: ['6 a.m.', '8 a.m.', '10 a.m.', '12 p.m.', '2 p.m.', '4 p.m.', '6 p.m.'],
-      datasets: [{
-        label: 'Lobby Temperature (C)',
-        data: [20.8, 21.2, 21.7, 22.1, 22.6, 22.8, 22.4],
-          borderColor: '#1E9DD1',
-          backgroundColor: 'rgba(30, 157, 209, 0.12)',
-          pointBackgroundColor: '#1E9DD1',
-        pointRadius: 4,
-        tension: 0.35,
-        fill: true,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, border: { display: false } },
-        y: {
-          suggestedMin: 18,
-          suggestedMax: 25,
-          grid: { color: '#E2E8F0' },
-          border: { display: false },
-          ticks: { callback: (value) => `${value} C` },
-        },
-      },
-    },
-  });
-}
-
-initializeSensorChart();
 
 // Wire up the Sensors page search box when those controls exist on the page.
 if (sensorSearch) {

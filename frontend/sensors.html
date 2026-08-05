@@ -10,12 +10,8 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <script>
-      document.documentElement.dataset.theme =
-        localStorage.getItem("gbtacTheme") ||
-        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    </script>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="sensor-averages.css?v=1" />
   </head>
   <body>
     <!-- Shared application header and primary navigation -->
@@ -83,19 +79,85 @@
         </article>
       </section>
 
-      <!-- Frontend chart area for the sample temperature trend. -->
-      <section class="dashboard-panel sensor-chart-panel">
-        <div class="panel-heading">
+      <!-- Sensor-average explorer backed by the imported historical readings. -->
+      <section
+        class="dashboard-panel sensor-average-panel"
+        aria-labelledby="sensorAverageHeading"
+      >
+        <div class="panel-heading sensor-average-heading">
           <div>
-            <h2>Temperature trend</h2>
-            <p>Sample lobby readings over the last 12 hours</p>
+            <h2 id="sensorAverageHeading">Sensor reading averages</h2>
+            <p>
+              Select any sensors to calculate a separate average for each one.
+              Values are shown in each sensor's display unit.
+            </p>
           </div>
+          <strong id="averageSelectedCount" class="sensor-selection-count"
+            >0 selected</strong
+          >
         </div>
-        <div class="sensor-chart-container">
-          <canvas
-            id="sensorTrendChart"
-            aria-label="Temperature readings over time"
-          ></canvas>
+
+        <div class="sensor-average-controls">
+          <label>
+            Start date (optional)
+            <input id="averageStartDate" type="date" />
+          </label>
+          <label>
+            End date (optional)
+            <input id="averageEndDate" type="date" />
+          </label>
+          <label class="sensor-average-search-label">
+            Find a sensor
+            <input
+              id="averageSensorSearch"
+              type="search"
+              placeholder="Search by ID, name, type, unit, or location"
+            />
+          </label>
+        </div>
+
+        <div class="sensor-average-actions" aria-label="Sensor selection actions">
+          <button id="selectVisibleAverageSensors" type="button" class="btn btn-secondary">
+            Select visible
+          </button>
+          <button id="clearAverageSensors" type="button" class="btn btn-secondary">
+            Clear selection
+          </button>
+          <button id="calculateSensorAverages" type="button" class="btn btn-primary">
+            Calculate averages
+          </button>
+        </div>
+
+        <p id="sensorAverageStatus" class="sensor-average-status" aria-live="polite">
+          Loading the sensor list…
+        </p>
+
+        <div class="sensor-average-table-wrap">
+          <table class="sensor-average-table">
+            <thead>
+              <tr>
+                <th class="sensor-average-select-column">
+                  <label class="sensor-average-select-all">
+                    <input
+                      id="averageSelectAll"
+                      type="checkbox"
+                      aria-label="Select all visible sensors"
+                    />
+                    <span>Select</span>
+                  </label>
+                </th>
+                <th>Sensor ID</th>
+                <th>Sensor name</th>
+                <th>Type</th>
+                <th>Unit</th>
+                <th>Readings</th>
+                <th>Average</th>
+                <th>Minimum</th>
+                <th>Maximum</th>
+              </tr>
+            </thead>
+            <tbody id="sensorAverageTableBody"></tbody>
+          </table>
         </div>
       </section>
 
@@ -127,11 +189,11 @@
 
     <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=sensor-averages-1"></script>
     <script type="module" src="backend-data.js"></script>
+    <script type="module" src="sensor-averages.js?v=1"></script>
     <script type="module" src="auth-ui.js?v=firebase-auth-1"></script>
   </body>
 </html>

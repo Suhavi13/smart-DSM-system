@@ -1,0 +1,209 @@
+/* Sensor average selection and results table. */
+.sensor-average-panel {
+  overflow: hidden;
+}
+
+.sensor-average-heading {
+  align-items: center;
+}
+
+.sensor-selection-count {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--secondary);
+  font-size: 0.85rem;
+}
+
+.sensor-average-controls {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 0.7fr)
+    minmax(150px, 0.7fr)
+    minmax(260px, 1.6fr);
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.sensor-average-controls label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sensor-average-controls input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  color: #000000;
+}
+
+.sensor-average-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.sensor-average-actions .btn {
+  min-height: 40px;
+}
+
+.sensor-average-status {
+  min-height: 1.35rem;
+  margin: 0 0 0.8rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sensor-average-status[data-state="success"] {
+  color: #166534;
+}
+
+.sensor-average-status[data-state="warning"],
+.sensor-average-status[data-state="error"] {
+  color: #9f1239;
+}
+
+.sensor-average-table-wrap {
+  max-height: 500px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sensor-average-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sensor-average-table th,
+.sensor-average-table td {
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sensor-average-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-strong);
+  color: var(--secondary);
+  font-size: 0.85rem;
+}
+
+.sensor-average-table td {
+  color: #000000;
+  font-size: 0.92rem;
+}
+
+.sensor-average-table tbody tr:nth-child(even) {
+  background: var(--surface-strong);
+}
+
+.sensor-average-table tbody tr.is-selected {
+  background: rgba(90, 13, 115, 0.1);
+}
+
+.sensor-average-table tbody tr:hover {
+  background: rgba(30, 157, 209, 0.1);
+}
+
+.sensor-average-select-column {
+  width: 78px;
+  text-align: center !important;
+}
+
+.sensor-average-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.sensor-average-checkbox,
+#averageSelectAll {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--midnight-plum);
+  cursor: pointer;
+}
+
+.sensor-average-result {
+  color: var(--secondary) !important;
+  font-weight: 800;
+}
+
+.sensor-average-empty {
+  padding: 1.5rem !important;
+  color: var(--muted) !important;
+  text-align: center !important;
+}
+
+html[data-theme="dark"] .sensor-average-controls input {
+  border-color: #475569;
+  background: #101827;
+  color: #e5edf8;
+}
+
+html[data-theme="dark"] .sensor-selection-count,
+html[data-theme="dark"] .sensor-average-table th {
+  background: var(--surface-strong);
+  color: #dbe7f5;
+}
+
+html[data-theme="dark"] .sensor-average-table td {
+  border-color: var(--border);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .sensor-average-table tbody tr.is-selected {
+  background: rgba(112, 201, 239, 0.12);
+}
+
+html[data-theme="dark"] .sensor-average-status[data-state="success"] {
+  color: #86efac;
+}
+
+html[data-theme="dark"] .sensor-average-status[data-state="warning"],
+html[data-theme="dark"] .sensor-average-status[data-state="error"] {
+  color: #fda4af;
+}
+
+@media (max-width: 900px) {
+  .sensor-average-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sensor-average-search-label {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .sensor-average-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sensor-average-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .sensor-average-search-label {
+    grid-column: auto;
+  }
+
+  .sensor-average-actions .btn {
+    width: 100%;
+  }
+}
