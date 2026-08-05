@@ -1,6 +1,16 @@
-// Browser-side authentication helpers shared by sign-in, signup, and protected pages.
-const config = window.APP_CONFIG;
+// Firebase Authentication helpers shared by sign-in, signup, reset, and protected pages.
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 
+import { firebaseAuth, firebaseReady } from "./firebase-client.js";
+
+const config = window.APP_CONFIG;
 if (!config) {
   throw new Error("config.js must be loaded before auth.js.");
 }
@@ -10,18 +20,24 @@ if (!apiBaseUrl) {
   throw new Error("Set API_BASE_URL in frontend/config.js.");
 }
 
-const CSRF_STORAGE_KEY = "gbtacCsrfToken";
-
-function storeCsrfToken(token) {
-  if (token) {
-    sessionStorage.setItem(CSRF_STORAGE_KEY, token);
-  }
+function waitForInitialAuthState() {
+  return new Promise((resolve, reject) => {
+    let unsubscribe = () => {};
+    unsubscribe = onAuthStateChanged(
+      firebaseAuth,
+      (user) => {
+        unsubscribe();
+        resolve(user);
+      },
+      (error) => {
+        unsubscribe();
+        reject(error);
+      }
+    );
+  });
 }
 
-function clearLocalSession() {
-  sessionStorage.removeItem(CSRF_STORAGE_KEY);
-  window.APP_USER = null;
-}
+const initialAuthState = firebaseReady.then(waitForInitialAuthState);
 
 async function readResponseBody(response) {
   const text = await response.text().catch(() => "");
@@ -34,98 +50,111 @@ async function readResponseBody(response) {
   }
 }
 
-function getErrorMessage(body, fallback) {
+function getApiErrorMessage(body, fallback) {
   if (typeof body.detail === "string" && body.detail.trim()) {
     return body.detail;
   }
-
-  if (Array.isArray(body.detail)) {
-    const messages = body.detail
-      .map((item) => item?.msg)
-      .filter(Boolean);
-
-    if (messages.length > 0) {
-      return messages.join(" ");
-    }
-  }
-
-  if (typeof body.message === "string" && body.message.trim()) {
-    return body.message;
-  }
-
   return fallback;
 }
 
+function firebaseErrorMessage(error, fallback) {
+  const messages = {
+    "auth/email-already-in-use": "An account already exists for this email.",
+    "auth/invalid-credential": "Invalid email or password.",
+    "auth/invalid-email": "Enter a valid email address.",
+    "auth/missing-password": "Enter your password.",
+    "auth/network-request-failed": "Unable to reach Firebase. Check your connection.",
+    "auth/operation-not-allowed": "Email/password sign-in is not enabled in Firebase.",
+    "auth/too-many-requests": "Too many attempts. Try again later.",
+    "auth/unauthorized-domain": "This website domain is not authorized in Firebase.",
+    "auth/user-disabled": "This account has been disabled.",
+    "auth/user-not-found": "If the account exists, check the email for next steps.",
+    "auth/weak-password": "Choose a stronger password with at least 8 characters.",
+  };
+  return messages[error?.code] || error?.message || fallback;
+}
+
+function makeAuthError(error, fallback) {
+  const wrapped = new Error(firebaseErrorMessage(error, fallback));
+  wrapped.code = error?.code;
+  return wrapped;
+}
+
 export async function signIn(email, password) {
-  const response = await fetch(`${apiBaseUrl}/auth/login`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, password }),
-  });
-
-  const body = await readResponseBody(response);
-  if (!response.ok) {
-    const error = new Error(getErrorMessage(body, "Sign-in failed."));
-    error.status = response.status;
-    throw error;
+  try {
+    await firebaseReady;
+    await signInWithEmailAndPassword(
+      firebaseAuth,
+      String(email || "").trim(),
+      password
+    );
+    return await getCurrentUser();
+  } catch (error) {
+    if (error?.status) throw error;
+    throw makeAuthError(error, "Sign-in failed.");
   }
-
-  storeCsrfToken(body.csrfToken);
-  return body;
 }
 
 export async function signUp(displayName, email, password) {
-  const response = await fetch(`${apiBaseUrl}/auth/signup`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ displayName, email, password }),
-  });
+  try {
+    await firebaseReady;
+    const credential = await createUserWithEmailAndPassword(
+      firebaseAuth,
+      String(email || "").trim(),
+      password
+    );
 
-  const body = await readResponseBody(response);
-  if (!response.ok) {
-    const error = new Error(getErrorMessage(body, "Account creation failed."));
-    error.status = response.status;
-    throw error;
+    const normalizedName = String(displayName || "").trim().replace(/\s+/g, " ");
+    if (normalizedName) {
+      await updateProfile(credential.user, { displayName: normalizedName });
+      await credential.user.getIdToken(true);
+    }
+
+    return await getCurrentUser();
+  } catch (error) {
+    if (error?.status) throw error;
+    throw makeAuthError(error, "Account creation failed.");
   }
+}
 
-  storeCsrfToken(body.csrfToken);
-  return body;
+export async function requestPasswordReset(email) {
+  try {
+    await firebaseReady;
+    await sendPasswordResetEmail(
+      firebaseAuth,
+      String(email || "").trim()
+    );
+  } catch (error) {
+    throw makeAuthError(error, "Unable to send the password-reset email.");
+  }
 }
 
 export async function signOut() {
   try {
-    await apiFetch("/auth/logout", { method: "POST" });
+    await firebaseSignOut(firebaseAuth);
   } finally {
-    clearLocalSession();
+    window.APP_USER = null;
     window.location.replace("index.html");
   }
 }
 
 export async function apiFetch(path, options = {}) {
-  const headers = new Headers(options.headers || {});
-  const method = String(options.method || "GET").toUpperCase();
-
-  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
-    const csrfToken = sessionStorage.getItem(CSRF_STORAGE_KEY);
-    if (csrfToken) {
-      headers.set("X-CSRF-Token", csrfToken);
-    }
+  await initialAuthState;
+  const firebaseUser = firebaseAuth.currentUser;
+  if (!firebaseUser) {
+    const error = new Error("Authentication is required.");
+    error.status = 401;
+    throw error;
   }
+
+  const idToken = await firebaseUser.getIdToken();
+  const headers = new Headers(options.headers || {});
+  headers.set("Authorization", `Bearer ${idToken}`);
 
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return fetch(`${apiBaseUrl}${normalizedPath}`, {
     ...options,
-    method,
     headers,
-    credentials: "include",
   });
 }
 
@@ -137,7 +166,7 @@ export async function getCurrentUser() {
 
   if (!response.ok) {
     const error = new Error(
-      getErrorMessage(
+      getApiErrorMessage(
         body,
         `Unable to load the signed-in user (${response.status}).`
       )
@@ -146,7 +175,6 @@ export async function getCurrentUser() {
     throw error;
   }
 
-  storeCsrfToken(body.csrfToken);
   return body;
 }
 
@@ -155,7 +183,8 @@ export async function requireSignedInUser() {
     return await getCurrentUser();
   } catch (error) {
     if (error.status === 401) {
-      clearLocalSession();
+      await firebaseSignOut(firebaseAuth).catch(() => {});
+      window.APP_USER = null;
       window.location.replace("index.html");
       return null;
     }

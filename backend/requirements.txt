@@ -3,12 +3,11 @@ uvicorn[standard]
 SQLAlchemy
 psycopg2-binary
 python-dotenv
+firebase-admin>=7.5,<8.0
 pandas
 openpyxl
 pydantic
 httpx
 redis>=5.0,<7.0
-PyJWT[crypto]
-argon2-cffi
 openai>=1.0,<3.0
 gunicorn

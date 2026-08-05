@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.app import recommendation_service
-from backend.app.models import SensorPoint, SensorReading
+from backend.app.models import Recommendation, SensorPoint, SensorReading
 from backend.app.weather_service import WeatherProviderError
 
 
@@ -133,6 +133,17 @@ def test_api_returns_three_explainable_triggered_recommendations(
         "investigate-demand-spike",
         "evaluate-economizer-cooling",
     }
+
+    stored = db_session.query(Recommendation).all()
+    assert len(stored) == 3
+    assert {item.recommendation_key for item in stored} == recommendation_ids
+    assert all(item.status == "pending" for item in stored)
+    assert all(item.recommendation_snapshot for item in stored)
+
+    # Reloading the same recommendation versions updates instead of duplicating.
+    second_response = client.get("/api/v1/recommendations")
+    assert second_response.status_code == 200
+    assert db_session.query(Recommendation).count() == 3
 
     for recommendation in payload["recommendations"]:
         assert recommendation["reason"]

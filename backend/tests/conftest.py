@@ -5,10 +5,8 @@ import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("CACHE_ENABLED", "false")
-os.environ.setdefault("ENTRA_TENANT_ID", "test-tenant-id")
-os.environ.setdefault("ENTRA_API_CLIENT_ID", "test-api-client-id")
-os.environ.setdefault("ENTRA_SPA_CLIENT_ID", "test-spa-client-id")
-os.environ.setdefault("ENTRA_REQUIRED_SCOPE", "access_as_user")
+os.environ.setdefault("FIREBASE_PROJECT_ID", "test-firebase-project")
+os.environ.setdefault("FIREBASE_CHECK_REVOKED_TOKENS", "false")
 
 import pytest
 from fastapi.testclient import TestClient

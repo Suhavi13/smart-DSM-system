@@ -12,11 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from .auth import (
-    CurrentUser,
-    bootstrap_user_from_environment,
-    viewer_or_operator,
-)
+from .auth import CurrentUser, viewer_or_operator
 from .cache_service import cache
 from .dashboard_sensors import (
     ENERGY_CONSUMPTION_SENSOR_CODE,
@@ -24,7 +20,7 @@ from .dashboard_sensors import (
     INDOOR_TEMPERATURE_SENSOR_CODES,
     INDOOR_WALL_TEMPERATURE_SENSOR_CODES,
 )
-from .database import Base, SessionLocal, engine, get_db
+from .database import Base, engine, get_db
 from .models import SensorPoint, SensorReading
 from .schemas import (
     DashboardOverviewResponse,
@@ -56,14 +52,8 @@ ReadingInterval = Literal["raw", "15min", "hour", "day"]
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # create_all only creates missing tables; it does not delete or rewrite the
-    # existing sensor/decision tables. This ensures app_users exists on deploy.
+    # create_all only creates missing sensor and decision tables.
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        bootstrap_user_from_environment(db)
-    finally:
-        db.close()
     yield
 
 
@@ -94,14 +84,13 @@ frontend_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
         "Accept",
         "Content-Type",
         "Authorization",
         "Idempotency-Key",
-        "X-CSRF-Token",
     ],
     expose_headers=["X-Cache"],
 )
@@ -721,7 +710,7 @@ def get_dashboard_overview(
 
 # For the quickest and most reliable deployment, serve the static frontend
 # from the same origin as the API. Set SERVE_FRONTEND=false only when using a
-# separate frontend host and configure FRONTEND_ORIGINS/cookie settings.
+# separate frontend host and configure FRONTEND_ORIGINS.
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 SERVE_FRONTEND = os.getenv("SERVE_FRONTEND", "true").strip().lower() in {
     "1",

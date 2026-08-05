@@ -151,6 +151,14 @@ import { apiGet } from "./api.js";
           >
             Reject
           </button>
+          <button
+            type="button"
+            class="btn recommendation-reset recommendation-action"
+            data-reset-decision
+            hidden
+          >
+            Set back to pending
+          </button>
         </div>
 
       <p class="decision-status" role="status" aria-live="polite"></p>

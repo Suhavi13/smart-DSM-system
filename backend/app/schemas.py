@@ -268,6 +268,13 @@ class DecisionCreate(BaseModel):
     )
 
 
+class DecisionResetCreate(BaseModel):
+    comment: str | None = Field(
+        default=None,
+        max_length=1000,
+    )
+
+
 class DecisionResponse(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
@@ -284,6 +291,11 @@ class DecisionResponse(BaseModel):
         alias="recommendationVersion"
     )
 
+    stored_recommendation_id: int | None = Field(
+        default=None,
+        alias="storedRecommendationId",
+    )
+
     action: str
     comment: str | None
 
@@ -297,4 +309,23 @@ class DecisionResponse(BaseModel):
 
     created_at: datetime = Field(
         alias="createdAt"
+    )
+
+    is_active: bool = Field(
+        alias="isActive"
+    )
+
+    reverted_at: datetime | None = Field(
+        default=None,
+        alias="revertedAt",
+    )
+
+    reverted_by: str | None = Field(
+        default=None,
+        alias="revertedBy",
+    )
+
+    revert_comment: str | None = Field(
+        default=None,
+        alias="revertComment",
     )

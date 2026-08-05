@@ -2817,3 +2817,31 @@ html[data-theme="dark"] .topbar .topbar-wordmark {
 .auth-switch-link a {
   font-weight: 700;
 }
+
+/* Reopen an approved/rejected recommendation without deleting audit history. */
+.recommendation-reset {
+  background: #475569;
+  color: #FFFFFF;
+  border-color: #475569;
+}
+
+.recommendation-reset:hover,
+.recommendation-reset:focus {
+  background: #334155;
+  border-color: #334155;
+}
+
+.app-dialog-pending .app-dialog-icon {
+  background: #475569;
+}
+
+.app-dialog-pending .app-dialog-confirm {
+  background: #475569;
+  border-color: #475569;
+}
+
+.app-dialog-pending .app-dialog-confirm:hover,
+.app-dialog-pending .app-dialog-confirm:focus {
+  background: #334155;
+  border-color: #334155;
+}

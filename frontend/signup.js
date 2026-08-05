@@ -1,5 +1,5 @@
 // Handles signup validation, password checklist updates, and account creation.
-import { getCurrentUser, signUp } from "./auth.js?v=viewer-signup-2";
+import { getCurrentUser, signUp } from "./auth.js";
 
 // DOM references for the signup form and password checklist.
 const signupForm = document.getElementById("signupForm");

@@ -1,26 +1,17 @@
-// Saves Operator approve/reject decisions for recommendation cards.
+// Saves Operator decisions and supports returning them to pending without deletion.
 import { apiRequest } from "./api.js";
 
 (() => {
   "use strict";
 
-  // Creates a unique key so repeated clicks do not save duplicate decisions.
   function createIdempotencyKey() {
-    if (
-      window.crypto &&
-      typeof window.crypto.randomUUID === "function"
-    ) {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
       return window.crypto.randomUUID();
     }
 
-    return (
-      Date.now().toString(36) +
-      "-" +
-      Math.random().toString(36).slice(2)
-    );
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   }
 
-  // Captures the visible recommendation text before an approve/reject decision.
   function getCardSnapshot(card) {
     const title =
       card.querySelector(".recommendation-title, h2, h3")
@@ -31,8 +22,7 @@ import { apiRequest } from "./api.js";
     const reason =
       card.querySelector(".recommendation-reason")
         ?.textContent.trim() || "";
-    const priority =
-      card.querySelector(".priority")?.textContent.trim() || "";
+    const priority = card.querySelector(".priority")?.textContent.trim() || "";
     const evidence = [...card.querySelectorAll(
       ".recommendation-evidence-item"
     )].map((item) => item.textContent.replace(/\s+/g, " ").trim());
@@ -40,60 +30,193 @@ import { apiRequest } from "./api.js";
     return { title, description, reason, priority, evidence };
   }
 
-  // Writes inline feedback at the bottom of a recommendation card.
   function setCardStatus(card, message, isError = false) {
     const statusElement = card.querySelector(".decision-status");
-    if (!statusElement) {
-      return;
-    }
+    if (!statusElement) return;
 
     statusElement.textContent = message;
     statusElement.classList.toggle("error-message", isError);
   }
 
-  // Locks decision buttons after a decision is saved.
-  function disableDecisionButtons(card) {
-    card
-      .querySelectorAll("[data-decision-action]")
-      .forEach((button) => {
-        button.disabled = true;
-      });
+  function decisionButtons(card) {
+    return [...card.querySelectorAll("[data-decision-action]")];
   }
 
-  // Updates the card UI after an approval or rejection is stored.
+  function resetButton(card) {
+    return card.querySelector("[data-reset-decision]");
+  }
+
+  function setDecisionButtonsDisabled(card, disabled) {
+    decisionButtons(card).forEach((button) => {
+      button.disabled = disabled;
+    });
+  }
+
+  function setVisibleStatus(card, status) {
+    const visibleStatus = card.querySelector(".recommendation-status");
+    if (!visibleStatus) return;
+
+    const labels = {
+      approved: "Approved",
+      rejected: "Rejected",
+      pending: "Pending review",
+    };
+
+    visibleStatus.textContent = labels[status] || labels.pending;
+    visibleStatus.className = `recommendation-status status-${status}`;
+  }
+
   function markSavedDecision(card, decision) {
     card.dataset.savedDecision = decision.action;
+    card.dataset.activeDecisionId = String(decision.decisionId);
     card.classList.toggle("is-approved", decision.action === "approved");
     card.classList.toggle("is-rejected", decision.action === "rejected");
 
-    const visibleStatus = card.querySelector(".recommendation-status");
-    if (visibleStatus) {
-      visibleStatus.textContent =
-        decision.action === "approved" ? "Approved" : "Rejected";
-      visibleStatus.className =
-        `recommendation-status ${
-          decision.action === "approved"
-            ? "status-approved"
-            : "status-rejected"
-        }`;
-    }
-
+    setVisibleStatus(card, decision.action);
     setCardStatus(
       card,
       `${decision.action === "approved" ? "Approved" : "Rejected"} by ${
         decision.operatorLabel
       } on ${new Date(decision.createdAt).toLocaleString()}`
     );
-    disableDecisionButtons(card);
+
+    setDecisionButtonsDisabled(card, true);
+    const pendingButton = resetButton(card);
+    if (pendingButton) {
+      pendingButton.hidden = false;
+      pendingButton.disabled = false;
+    }
   }
 
-  // Handles one approve/reject button click from the recommendation card.
+  function markPending(card, decision) {
+    delete card.dataset.savedDecision;
+    delete card.dataset.activeDecisionId;
+    card.classList.remove("is-approved", "is-rejected");
+
+    setVisibleStatus(card, "pending");
+    setDecisionButtonsDisabled(card, false);
+
+    const pendingButton = resetButton(card);
+    if (pendingButton) {
+      pendingButton.hidden = true;
+      pendingButton.disabled = false;
+    }
+
+    const revertedBy = decision.revertedBy || "an Operator";
+    const revertedAt = decision.revertedAt
+      ? new Date(decision.revertedAt).toLocaleString()
+      : new Date().toLocaleString();
+    setCardStatus(
+      card,
+      `Returned to pending by ${revertedBy} on ${revertedAt}`
+    );
+  }
+
+  function requestWorkflowComment(mode) {
+    const settings = {
+      approved: {
+        dialogClass: "app-dialog-approve",
+        icon: "✓",
+        title: "Approve this recommendation?",
+        message: "Add an optional comment, then confirm your decision.",
+        label: "Approve",
+        placeholder: "Explain why this recommendation is being approved.",
+      },
+      rejected: {
+        dialogClass: "app-dialog-reject",
+        icon: "×",
+        title: "Reject this recommendation?",
+        message: "Add an optional comment, then confirm your decision.",
+        label: "Reject",
+        placeholder: "Explain why this recommendation is being rejected.",
+      },
+      pending: {
+        dialogClass: "app-dialog-pending",
+        icon: "↺",
+        title: "Return this recommendation to pending?",
+        message:
+          "The previous decision will remain in the audit history but will no longer be active.",
+        label: "Set to pending",
+        placeholder: "Optionally explain why this decision is being reopened.",
+      },
+    }[mode];
+
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "app-dialog-overlay";
+      overlay.setAttribute("role", "presentation");
+
+      const dialog = document.createElement("section");
+      dialog.className = `app-dialog ${settings.dialogClass}`;
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "decisionDialogTitle");
+
+      dialog.innerHTML = `
+        <div class="app-dialog-icon" aria-hidden="true">${settings.icon}</div>
+        <h2 id="decisionDialogTitle">${settings.title}</h2>
+        <p>${settings.message}</p>
+        <label
+          for="decisionComment"
+          style="display:block; margin-top:1rem; text-align:left; font-weight:700;"
+        >
+          Comment <span style="font-weight:400;">(optional)</span>
+        </label>
+        <textarea
+          id="decisionComment"
+          maxlength="1000"
+          rows="4"
+          placeholder="${settings.placeholder}"
+          style="width:100%; margin-top:0.45rem; padding:0.75rem; resize:vertical; border:1px solid #94a3b8; border-radius:6px; font:inherit; color:inherit; background:var(--white);"
+        ></textarea>
+        <div class="app-dialog-actions">
+          <button type="button" class="btn app-dialog-cancel" data-dialog-cancel>
+            Cancel
+          </button>
+          <button type="button" class="btn app-dialog-confirm" data-dialog-confirm>
+            ${settings.label}
+          </button>
+        </div>
+      `;
+
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+
+      const commentField = dialog.querySelector("#decisionComment");
+      const confirmButton = dialog.querySelector("[data-dialog-confirm]");
+      const cancelButton = dialog.querySelector("[data-dialog-cancel]");
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      let finished = false;
+
+      const close = (value) => {
+        if (finished) return;
+        finished = true;
+        document.removeEventListener("keydown", handleKeydown);
+        document.body.style.overflow = previousOverflow;
+        overlay.remove();
+        resolve(value);
+      };
+
+      const handleKeydown = (event) => {
+        if (event.key === "Escape") close(null);
+      };
+
+      confirmButton.addEventListener("click", () => {
+        close(commentField.value.trim());
+      });
+      cancelButton.addEventListener("click", () => close(null));
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) close(null);
+      });
+      document.addEventListener("keydown", handleKeydown);
+      window.setTimeout(() => commentField.focus(), 0);
+    });
+  }
+
   async function submitDecision(button) {
     const card = button.closest("[data-recommendation-id]");
-
-    if (!card || card.dataset.savedDecision) {
-      return;
-    }
+    if (!card || card.dataset.savedDecision) return;
 
     if (!window.APP_USER?.isOperator) {
       setCardStatus(
@@ -109,36 +232,12 @@ import { apiRequest } from "./api.js";
       card.dataset.recommendationVersion || "1"
     );
     const action = button.dataset.decisionAction;
+    if (action !== "approved" && action !== "rejected") return;
 
-    if (action !== "approved" && action !== "rejected") {
-      return;
-    }
+    const comment = await requestWorkflowComment(action);
+    if (comment === null) return;
 
-    const confirmationText =
-      action === "approved"
-        ? "Approve this recommendation?"
-        : "Reject this recommendation?";
-
-    if (!window.confirm(confirmationText)) {
-      return;
-    }
-
-    const comment = window.prompt(
-      "Add an optional decision comment:",
-      ""
-    );
-
-    if (comment === null) {
-      return;
-    }
-
-    const cardButtons = [
-      ...card.querySelectorAll("[data-decision-action]"),
-    ];
-    cardButtons.forEach((item) => {
-      item.disabled = true;
-    });
-
+    setDecisionButtonsDisabled(card, true);
     setCardStatus(card, "Saving decision…");
 
     try {
@@ -152,17 +251,14 @@ import { apiRequest } from "./api.js";
           recommendationId,
           recommendationVersion,
           action,
-          comment: comment.trim() || null,
+          comment: comment || null,
           recommendationSnapshot: getCardSnapshot(card),
         }),
       });
 
-      const body = await response.json();
-      markSavedDecision(card, body);
+      markSavedDecision(card, await response.json());
     } catch (error) {
-      cardButtons.forEach((item) => {
-        item.disabled = false;
-      });
+      setDecisionButtonsDisabled(card, false);
       setCardStatus(
         card,
         error.message || "The decision could not be saved.",
@@ -171,7 +267,47 @@ import { apiRequest } from "./api.js";
     }
   }
 
-  // Restores previously saved decisions after recommendation cards render.
+  async function submitReset(button) {
+    const card = button.closest("[data-recommendation-id]");
+    const decisionId = Number(card?.dataset.activeDecisionId || "0");
+    if (!card || !decisionId) return;
+
+    if (!window.APP_USER?.isOperator) {
+      setCardStatus(
+        card,
+        "Only users with the Operator role can return a decision to pending.",
+        true
+      );
+      return;
+    }
+
+    const comment = await requestWorkflowComment("pending");
+    if (comment === null) return;
+
+    button.disabled = true;
+    setCardStatus(card, "Returning recommendation to pending…");
+
+    try {
+      const response = await apiRequest(
+        `/decisions/${decisionId}/reset`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: comment || null }),
+        }
+      );
+
+      markPending(card, await response.json());
+    } catch (error) {
+      button.disabled = false;
+      setCardStatus(
+        card,
+        error.message || "The recommendation could not be returned to pending.",
+        true
+      );
+    }
+  }
+
   async function restoreSavedDecisions() {
     try {
       const response = await apiRequest("/decisions?limit=500", {
@@ -181,10 +317,10 @@ import { apiRequest } from "./api.js";
       const latestByRecommendation = new Map();
 
       decisions.forEach((decision) => {
+        if (!decision.isActive) return;
         const key =
           `${decision.recommendationId}:` +
           `${decision.recommendationVersion}`;
-
         if (!latestByRecommendation.has(key)) {
           latestByRecommendation.set(key, decision);
         }
@@ -193,16 +329,11 @@ import { apiRequest } from "./api.js";
       document
         .querySelectorAll("[data-recommendation-id]")
         .forEach((card) => {
-          const recommendationId = card.dataset.recommendationId;
-          const recommendationVersion =
-            card.dataset.recommendationVersion || "1";
-          const decision = latestByRecommendation.get(
-            `${recommendationId}:${recommendationVersion}`
-          );
-
-          if (decision) {
-            markSavedDecision(card, decision);
-          }
+          const key =
+            `${card.dataset.recommendationId}:` +
+            `${card.dataset.recommendationVersion || "1"}`;
+          const decision = latestByRecommendation.get(key);
+          if (decision) markSavedDecision(card, decision);
         });
     } catch (error) {
       console.error("Could not restore saved decisions:", error);
@@ -210,10 +341,14 @@ import { apiRequest } from "./api.js";
   }
 
   document.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-decision-action]");
-    if (button) {
-      submitDecision(button);
+    const decisionButton = event.target.closest("[data-decision-action]");
+    if (decisionButton) {
+      submitDecision(decisionButton);
+      return;
     }
+
+    const pendingButton = event.target.closest("[data-reset-decision]");
+    if (pendingButton) submitReset(pendingButton);
   });
 
   document.addEventListener(
