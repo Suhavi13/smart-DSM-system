@@ -207,3 +207,106 @@ html[data-theme="dark"] .sensor-average-status[data-state="error"] {
     width: 100%;
   }
 }
+
+/* Average-results graph shown above the sensor selector. */
+.sensor-average-chart-panel {
+  margin-bottom: 1.2rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sensor-average-chart-panel[hidden],
+.sensor-average-unit-control[hidden] {
+  display: none;
+}
+
+.sensor-average-chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.sensor-average-chart-heading h3,
+.sensor-average-table-heading h3 {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 1rem;
+}
+
+.sensor-average-chart-heading p,
+.sensor-average-table-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.sensor-average-unit-control {
+  display: grid;
+  flex: 0 0 min(220px, 35%);
+  gap: 0.35rem;
+  color: var(--secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sensor-average-unit-control select {
+  min-height: 40px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  color: #000000;
+}
+
+.sensor-average-chart-scroll {
+  max-height: 650px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sensor-average-chart-frame {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+}
+
+.sensor-average-chart-empty {
+  margin: 0;
+  padding: 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.sensor-average-table-heading {
+  margin: 0 0 0.7rem;
+}
+
+html[data-theme="dark"] .sensor-average-chart-panel {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .sensor-average-unit-control select {
+  border-color: #475569;
+  background: #101827;
+  color: #e5edf8;
+}
+
+@media (max-width: 620px) {
+  .sensor-average-chart-heading {
+    flex-direction: column;
+  }
+
+  .sensor-average-unit-control {
+    width: 100%;
+  }
+
+  .sensor-average-chart-scroll {
+    max-height: 520px;
+  }
+}

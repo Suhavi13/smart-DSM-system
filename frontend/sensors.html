@@ -11,7 +11,7 @@
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="sensor-averages.css?v=1" />
+    <link rel="stylesheet" href="sensor-averages.css?v=2" />
   </head>
   <body>
     <!-- Shared application header and primary navigation -->
@@ -88,8 +88,8 @@
           <div>
             <h2 id="sensorAverageHeading">Sensor reading averages</h2>
             <p>
-              Select any sensors to calculate a separate average for each one.
-              Values are shown in each sensor's display unit.
+              Select sensors and compare their average imported readings in a graph.
+              Sensors with different units are displayed in separate graph groups.
             </p>
           </div>
           <strong id="averageSelectedCount" class="sensor-selection-count"
@@ -132,6 +132,37 @@
           Loading the sensor list…
         </p>
 
+        <section
+          id="sensorAverageChartPanel"
+          class="sensor-average-chart-panel"
+          aria-labelledby="sensorAverageChartHeading"
+          hidden
+        >
+          <div class="sensor-average-chart-heading">
+            <div>
+              <h3 id="sensorAverageChartHeading">Average readings graph</h3>
+              <p id="sensorAverageChartSummary" aria-live="polite"></p>
+            </div>
+            <label id="averageChartUnitControl" class="sensor-average-unit-control">
+              Graph unit
+              <select id="averageChartUnit" aria-label="Choose the unit shown in the graph"></select>
+            </label>
+          </div>
+          <p id="sensorAverageChartEmpty" class="sensor-average-chart-empty" hidden></p>
+          <div class="sensor-average-chart-scroll">
+            <div id="sensorAverageChartFrame" class="sensor-average-chart-frame">
+              <canvas
+                id="sensorAverageChart"
+                aria-label="Horizontal bar graph comparing selected sensor average readings"
+              ></canvas>
+            </div>
+          </div>
+        </section>
+
+        <div class="sensor-average-table-heading">
+          <h3>Choose sensors</h3>
+          <p>Use the checkboxes below, then select Calculate averages.</p>
+        </div>
         <div class="sensor-average-table-wrap">
           <table class="sensor-average-table">
             <thead>
@@ -150,10 +181,6 @@
                 <th>Sensor name</th>
                 <th>Type</th>
                 <th>Unit</th>
-                <th>Readings</th>
-                <th>Average</th>
-                <th>Minimum</th>
-                <th>Maximum</th>
               </tr>
             </thead>
             <tbody id="sensorAverageTableBody"></tbody>
@@ -189,11 +216,12 @@
 
     <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>
     <script type="module" src="script.js?v=sensor-averages-1"></script>
     <script type="module" src="backend-data.js"></script>
-    <script type="module" src="sensor-averages.js?v=1"></script>
+    <script type="module" src="sensor-averages.js?v=2"></script>
     <script type="module" src="auth-ui.js?v=firebase-auth-1"></script>
   </body>
 </html>
