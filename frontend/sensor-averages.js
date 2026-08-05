@@ -1,18 +1,34 @@
-// Interactive historical sensor-average explorer for the Sensors page.
+// Compact historical sensor-average explorer for the Sensors page.
 import { apiGet, apiRequest } from "./api.js";
+
+const PICKER_PAGE_SIZE = 12;
+const CHART_PAGE_SIZE = 12;
+const SELECTED_PREVIEW_LIMIT = 8;
 
 const tableBody = document.getElementById("sensorAverageTableBody");
 const searchInput = document.getElementById("averageSensorSearch");
+const categoryFilter = document.getElementById("averageSensorCategory");
+const unitFilter = document.getElementById("averageSensorUnit");
+const selectedOnlyFilter = document.getElementById("averageSelectedOnly");
 const startDateInput = document.getElementById("averageStartDate");
 const endDateInput = document.getElementById("averageEndDate");
-const selectAllCheckbox = document.getElementById("averageSelectAll");
-const selectVisibleButton = document.getElementById(
-  "selectVisibleAverageSensors"
-);
+const selectPageButton = document.getElementById("selectAverageSensorPage");
+const clearFiltersButton = document.getElementById("clearAverageSensorFilters");
 const clearButton = document.getElementById("clearAverageSensors");
 const calculateButton = document.getElementById("calculateSensorAverages");
 const selectedCount = document.getElementById("averageSelectedCount");
+const selectedHelp = document.getElementById("averageSelectedHelp");
+const selectedPreview = document.getElementById("averageSelectedPreview");
 const statusElement = document.getElementById("sensorAverageStatus");
+
+const pickerPanel = document.getElementById("averageSensorPicker");
+const pickerToggle = document.getElementById("toggleAverageSensorPicker");
+const pickerClose = document.getElementById("closeAverageSensorPicker");
+const pickerResultCount = document.getElementById("sensorPickerResultCount");
+const pickerPrevious = document.getElementById("averagePickerPrevious");
+const pickerNext = document.getElementById("averagePickerNext");
+const pickerPageText = document.getElementById("averagePickerPage");
+
 const chartPanel = document.getElementById("sensorAverageChartPanel");
 const chartCanvas = document.getElementById("sensorAverageChart");
 const chartFrame = document.getElementById("sensorAverageChartFrame");
@@ -20,11 +36,18 @@ const chartEmpty = document.getElementById("sensorAverageChartEmpty");
 const chartSummary = document.getElementById("sensorAverageChartSummary");
 const chartUnitSelect = document.getElementById("averageChartUnit");
 const chartUnitControl = document.getElementById("averageChartUnitControl");
+const chartSortSelect = document.getElementById("averageChartSort");
+const chartPagination = document.getElementById("averageChartPagination");
+const chartPrevious = document.getElementById("averageChartPrevious");
+const chartNext = document.getElementById("averageChartNext");
+const chartPageText = document.getElementById("averageChartPage");
 
 let sensors = [];
 const selectedCodes = new Set();
 const averagesByCode = new Map();
 let averageChart = null;
+let pickerPage = 1;
+let chartPage = 1;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -38,15 +61,20 @@ function escapeHtml(value) {
 function formatNumber(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
-
-  return number.toLocaleString(undefined, {
-    maximumFractionDigits: 3,
-  });
+  return number.toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
 function formatCount(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number.toLocaleString() : "—";
+}
+
+function sensorUnit(sensor) {
+  return String(sensor.displayUnit || sensor.rawUnit || "Unconfirmed").trim();
+}
+
+function sensorName(sensor) {
+  return String(sensor.displayName || sensor.sensorCode || "Unknown sensor");
 }
 
 function normalizedSearchValue(sensor) {
@@ -63,12 +91,32 @@ function normalizedSearchValue(sensor) {
     .toLowerCase();
 }
 
-function visibleSensors() {
+function filteredSensors() {
   const search = String(searchInput?.value || "").trim().toLowerCase();
-  if (!search) return sensors;
-  return sensors.filter((sensor) =>
-    normalizedSearchValue(sensor).includes(search)
-  );
+  const category = categoryFilter?.value || "";
+  const unit = unitFilter?.value || "";
+  const selectedOnly = Boolean(selectedOnlyFilter?.checked);
+
+  return sensors.filter((sensor) => {
+    if (search && !normalizedSearchValue(sensor).includes(search)) return false;
+    if (category && String(sensor.category || "Uncategorized") !== category) return false;
+    if (unit && sensorUnit(sensor) !== unit) return false;
+    if (selectedOnly && !selectedCodes.has(sensor.sensorCode)) return false;
+    return true;
+  });
+}
+
+function pickerPageData() {
+  const filtered = filteredSensors();
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PICKER_PAGE_SIZE));
+  pickerPage = Math.min(Math.max(1, pickerPage), pageCount);
+  const start = (pickerPage - 1) * PICKER_PAGE_SIZE;
+  return {
+    filtered,
+    pageCount,
+    rows: filtered.slice(start, start + PICKER_PAGE_SIZE),
+    start,
+  };
 }
 
 function setStatus(message, state = "normal") {
@@ -77,37 +125,89 @@ function setStatus(message, state = "normal") {
   statusElement.dataset.state = state;
 }
 
-function updateSelectionSummary() {
-  if (selectedCount) {
-    selectedCount.textContent = `${selectedCodes.size} selected`;
+function populateFilterOptions() {
+  const categories = [...new Set(
+    sensors.map((sensor) => String(sensor.category || "Uncategorized"))
+  )].sort((a, b) => a.localeCompare(b));
+  const units = [...new Set(sensors.map(sensorUnit))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  if (categoryFilter) {
+    categoryFilter.innerHTML = [
+      '<option value="">All types</option>',
+      ...categories.map(
+        (category) =>
+          `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`
+      ),
+    ].join("");
   }
 
-  const visible = visibleSensors();
-  const selectedVisible = visible.filter((sensor) =>
-    selectedCodes.has(sensor.sensorCode)
-  ).length;
-
-  if (selectAllCheckbox) {
-    selectAllCheckbox.checked =
-      visible.length > 0 && selectedVisible === visible.length;
-    selectAllCheckbox.indeterminate =
-      selectedVisible > 0 && selectedVisible < visible.length;
-  }
-
-  if (calculateButton) {
-    calculateButton.disabled = selectedCodes.size === 0;
+  if (unitFilter) {
+    unitFilter.innerHTML = [
+      '<option value="">All units</option>',
+      ...units.map(
+        (unit) => `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`
+      ),
+    ].join("");
   }
 }
 
-function renderTable() {
+function renderSelectedPreview() {
+  if (!selectedPreview || !selectedHelp) return;
+
+  const selectedSensors = sensors
+    .filter((sensor) => selectedCodes.has(sensor.sensorCode))
+    .sort((left, right) => sensorName(left).localeCompare(sensorName(right)));
+
+  if (selectedSensors.length === 0) {
+    selectedHelp.textContent = "No sensors selected yet.";
+    selectedPreview.innerHTML = "";
+    return;
+  }
+
+  selectedHelp.textContent =
+    selectedSensors.length === 1
+      ? "1 sensor will be included in the calculation."
+      : `${selectedSensors.length} sensors will be included. The graph shows 12 bars per page.`;
+
+  const previewRows = selectedSensors.slice(0, SELECTED_PREVIEW_LIMIT);
+  selectedPreview.innerHTML = previewRows
+    .map(
+      (sensor) => `
+        <span class="sensor-selected-chip">
+          <span title="${escapeHtml(sensorName(sensor))}">${escapeHtml(sensorName(sensor))}</span>
+          <button
+            type="button"
+            data-remove-average-sensor="${escapeHtml(sensor.sensorCode)}"
+            aria-label="Remove ${escapeHtml(sensorName(sensor))}"
+          >×</button>
+        </span>`
+    )
+    .join("");
+
+  if (selectedSensors.length > SELECTED_PREVIEW_LIMIT) {
+    selectedPreview.insertAdjacentHTML(
+      "beforeend",
+      `<span class="sensor-selected-more">+${selectedSensors.length - SELECTED_PREVIEW_LIMIT} more</span>`
+    );
+  }
+}
+
+function updateSelectionSummary() {
+  if (selectedCount) selectedCount.textContent = `${selectedCodes.size} selected`;
+  if (calculateButton) calculateButton.disabled = selectedCodes.size === 0;
+  if (clearButton) clearButton.disabled = selectedCodes.size === 0;
+  renderSelectedPreview();
+}
+
+function renderPicker() {
   if (!tableBody) return;
 
-  const visible = visibleSensors();
-  tableBody.innerHTML = visible
+  const { filtered, pageCount, rows, start } = pickerPageData();
+  tableBody.innerHTML = rows
     .map((sensor) => {
       const isSelected = selectedCodes.has(sensor.sensorCode);
-      const unit = sensor.displayUnit || sensor.rawUnit || "Unconfirmed";
-
       return `
         <tr class="${isSelected ? "is-selected" : ""}">
           <td class="sensor-average-select-column">
@@ -115,28 +215,50 @@ function renderTable() {
               class="sensor-average-checkbox"
               type="checkbox"
               value="${escapeHtml(sensor.sensorCode)}"
-              aria-label="Select ${escapeHtml(sensor.displayName)}"
+              aria-label="Select ${escapeHtml(sensorName(sensor))}"
               ${isSelected ? "checked" : ""}
             />
           </td>
-          <td><strong>${escapeHtml(sensor.sensorCode)}</strong></td>
-          <td>${escapeHtml(sensor.displayName)}</td>
+          <td>
+            <span class="sensor-picker-name">
+              <strong>${escapeHtml(sensorName(sensor))}</strong>
+              <small>${escapeHtml(sensor.sensorCode)}</small>
+            </span>
+          </td>
           <td>${escapeHtml(sensor.category || "Uncategorized")}</td>
-          <td>${escapeHtml(unit)}</td>
+          <td>${escapeHtml(sensorUnit(sensor))}</td>
         </tr>`;
     })
     .join("");
 
-  if (visible.length === 0) {
+  if (rows.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="sensor-average-empty">
-          No sensors match this search.
-        </td>
+        <td colspan="4" class="sensor-average-empty">No sensors match these filters.</td>
       </tr>`;
   }
 
+  if (pickerResultCount) {
+    const first = filtered.length ? start + 1 : 0;
+    const last = Math.min(start + rows.length, filtered.length);
+    pickerResultCount.textContent =
+      filtered.length === sensors.length
+        ? `Showing ${first}–${last} of ${sensors.length} sensors`
+        : `Showing ${first}–${last} of ${filtered.length} matching sensors`;
+  }
+  if (pickerPageText) pickerPageText.textContent = `Page ${pickerPage} of ${pageCount}`;
+  if (pickerPrevious) pickerPrevious.disabled = pickerPage <= 1;
+  if (pickerNext) pickerNext.disabled = pickerPage >= pageCount;
+  if (selectPageButton) selectPageButton.disabled = rows.length === 0;
   updateSelectionSummary();
+}
+
+function setPickerOpen(isOpen) {
+  if (!pickerPanel || !pickerToggle) return;
+  pickerPanel.hidden = !isOpen;
+  pickerToggle.setAttribute("aria-expanded", String(isOpen));
+  pickerToggle.textContent = isOpen ? "Hide sensor picker" : "Choose sensors";
+  if (isOpen) renderPicker();
 }
 
 function destroyAverageChart() {
@@ -152,29 +274,27 @@ function hideAverageChart() {
   if (chartEmpty) chartEmpty.hidden = true;
   if (chartCanvas) chartCanvas.hidden = false;
   if (chartSummary) chartSummary.textContent = "";
+  if (chartPagination) chartPagination.hidden = true;
 }
 
 function clearCalculatedResults(message) {
   averagesByCode.clear();
+  chartPage = 1;
   hideAverageChart();
   if (message) setStatus(message);
 }
 
 function invalidateResultsAfterSelectionChange() {
   if (averagesByCode.size === 0) return;
-  clearCalculatedResults(
-    "Sensor selection changed. Calculate again to update the graph."
-  );
+  clearCalculatedResults("Sensor selection changed. Calculate again to update the graph.");
 }
 
 function requestDateRange() {
   const startDate = startDateInput?.value || "";
   const endDate = endDateInput?.value || "";
-
   if (startDate && endDate && startDate > endDate) {
     throw new Error("The start date must be before the end date.");
   }
-
   return {
     start: startDate ? `${startDate}T00:00:00` : null,
     end: endDate ? `${endDate}T23:59:59` : null,
@@ -196,43 +316,36 @@ function graphableResults() {
 
 function resultsGroupedByUnit() {
   const grouped = new Map();
-
   graphableResults().forEach((result) => {
     const unit = resultUnit(result);
     if (!grouped.has(unit)) grouped.set(unit, []);
     grouped.get(unit).push(result);
   });
-
   return grouped;
 }
 
 function updateUnitOptions(groupedResults) {
   if (!chartUnitSelect) return null;
-
   const previousUnit = chartUnitSelect.value;
   const units = Array.from(groupedResults.entries())
-    .sort((left, right) => {
-      const countDifference = right[1].length - left[1].length;
-      return countDifference || left[0].localeCompare(right[0]);
-    })
+    .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))
     .map(([unit]) => unit);
 
   chartUnitSelect.innerHTML = units
-    .map(
-      (unit) =>
-        `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`
-    )
+    .map((unit) => `<option value="${escapeHtml(unit)}">${escapeHtml(unit)}</option>`)
     .join("");
-
-  if (units.includes(previousUnit)) {
-    chartUnitSelect.value = previousUnit;
-  }
-
-  if (chartUnitControl) {
-    chartUnitControl.hidden = units.length <= 1;
-  }
-
+  if (units.includes(previousUnit)) chartUnitSelect.value = previousUnit;
+  if (chartUnitControl) chartUnitControl.hidden = units.length <= 1;
   return chartUnitSelect.value || units[0] || null;
+}
+
+function sortChartRows(rows) {
+  const mode = chartSortSelect?.value || "name";
+  return [...rows].sort((left, right) => {
+    if (mode === "high") return Number(right.averageValue) - Number(left.averageValue);
+    if (mode === "low") return Number(left.averageValue) - Number(right.averageValue);
+    return sensorName(left).localeCompare(sensorName(right));
+  });
 }
 
 function cssColor(variableName, fallback) {
@@ -262,73 +375,71 @@ function showChartEmpty(message) {
     chartEmpty.textContent = message;
   }
   if (chartSummary) chartSummary.textContent = message;
+  if (chartPagination) chartPagination.hidden = true;
+}
+
+function chartLabel(result) {
+  const name = sensorName(result);
+  const shortName = name.length > 34 ? `${name.slice(0, 31)}…` : name;
+  return `${result.sensorCode} · ${shortName}`;
 }
 
 function renderAverageChart() {
   if (!chartCanvas || !chartPanel) return;
-
   const ChartConstructor = window.Chart;
   if (typeof ChartConstructor !== "function") {
-    showChartEmpty(
-      "The graph library did not load. Check the internet connection and refresh the page."
-    );
+    showChartEmpty("The graph library did not load. Check the internet connection and refresh.");
     return;
   }
 
   const groupedResults = resultsGroupedByUnit();
   const selectedUnit = updateUnitOptions(groupedResults);
-
   if (!selectedUnit) {
     showChartEmpty("No numeric readings were available for the selected sensors.");
     return;
   }
 
-  const rows = [...(groupedResults.get(selectedUnit) || [])].sort((left, right) =>
-    String(left.displayName || left.sensorCode).localeCompare(
-      String(right.displayName || right.sensorCode)
-    )
-  );
-
-  if (rows.length === 0) {
+  const allRows = sortChartRows(groupedResults.get(selectedUnit) || []);
+  if (allRows.length === 0) {
     showChartEmpty(`No numeric readings were available in ${selectedUnit}.`);
     return;
   }
+
+  const pageCount = Math.max(1, Math.ceil(allRows.length / CHART_PAGE_SIZE));
+  chartPage = Math.min(Math.max(1, chartPage), pageCount);
+  const start = (chartPage - 1) * CHART_PAGE_SIZE;
+  const rows = allRows.slice(start, start + CHART_PAGE_SIZE);
 
   destroyAverageChart();
   chartPanel.hidden = false;
   chartCanvas.hidden = false;
   if (chartEmpty) chartEmpty.hidden = true;
-
-  const chartHeight = Math.max(300, Math.min(rows.length * 44 + 90, 5200));
-  if (chartFrame) chartFrame.style.height = `${chartHeight}px`;
+  if (chartFrame) chartFrame.style.height = `${Math.max(320, rows.length * 42 + 100)}px`;
 
   const groupedSensorCount = Array.from(groupedResults.values()).reduce(
     (total, group) => total + group.length,
     0
   );
   const excludedCount = selectedCodes.size - groupedSensorCount;
-  const unitGroupText =
-    groupedResults.size > 1
-      ? ` Showing ${rows.length} sensor(s) measured in ${selectedUnit}; choose another unit to view the other groups.`
-      : ` Showing ${rows.length} sensor(s) measured in ${selectedUnit}.`;
-  const excludedText =
-    excludedCount > 0
-      ? ` ${excludedCount} selected sensor(s) had no numeric readings in the chosen date range.`
-      : "";
-
+  const first = start + 1;
+  const last = Math.min(start + rows.length, allRows.length);
+  const excludedText = excludedCount
+    ? ` ${excludedCount} selected sensor(s) had no numeric readings in this date range.`
+    : "";
   if (chartSummary) {
-    chartSummary.textContent = `${unitGroupText.trim()}${excludedText}`;
+    chartSummary.textContent = `Showing bars ${first}–${last} of ${allRows.length} in ${selectedUnit}.${excludedText}`;
   }
 
-  const theme = chartTheme();
-  const context = chartCanvas.getContext("2d");
+  if (chartPagination) chartPagination.hidden = pageCount <= 1;
+  if (chartPageText) chartPageText.textContent = `Page ${chartPage} of ${pageCount}`;
+  if (chartPrevious) chartPrevious.disabled = chartPage <= 1;
+  if (chartNext) chartNext.disabled = chartPage >= pageCount;
 
-  averageChart = new ChartConstructor(context, {
+  const theme = chartTheme();
+  averageChart = new ChartConstructor(chartCanvas.getContext("2d"), {
     type: "bar",
     data: {
-      labels: rows.map(
-        (result) => `${result.sensorCode} — ${result.displayName}`
-      ),
+      labels: rows.map(chartLabel),
       datasets: [
         {
           label: `Average (${selectedUnit})`,
@@ -345,11 +456,8 @@ function renderAverageChart() {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
-      animation: rows.length <= 30,
-      interaction: {
-        mode: "nearest",
-        intersect: true,
-      },
+      animation: rows.length <= 12,
+      interaction: { mode: "nearest", intersect: true },
       scales: {
         x: {
           beginAtZero: false,
@@ -359,18 +467,11 @@ function renderAverageChart() {
             color: theme.text,
             font: { weight: "bold" },
           },
-          ticks: {
-            color: theme.muted,
-            callback: (value) => formatNumber(value),
-          },
+          ticks: { color: theme.muted, callback: (value) => formatNumber(value) },
           grid: { color: theme.grid },
         },
         y: {
-          ticks: {
-            color: theme.text,
-            autoSkip: false,
-            font: { size: 11 },
-          },
+          ticks: { color: theme.text, autoSkip: false, font: { size: 11 } },
           grid: { display: false },
         },
       },
@@ -380,12 +481,9 @@ function renderAverageChart() {
           callbacks: {
             title: (items) => {
               const result = rows[items[0]?.dataIndex];
-              return result
-                ? [`${result.displayName}`, result.sensorCode]
-                : [];
+              return result ? [sensorName(result), result.sensorCode] : [];
             },
-            label: (item) =>
-              `Average: ${formatNumber(item.raw)} ${selectedUnit}`,
+            label: (item) => `Average: ${formatNumber(item.raw)} ${selectedUnit}`,
             afterLabel: (item) => {
               const result = rows[item.dataIndex];
               return [
@@ -404,6 +502,7 @@ function renderAverageChart() {
 async function calculateAverages() {
   if (selectedCodes.size === 0) {
     setStatus("Select at least one sensor before calculating.", "error");
+    setPickerOpen(true);
     return;
   }
 
@@ -417,18 +516,12 @@ async function calculateAverages() {
 
   calculateButton.disabled = true;
   calculateButton.textContent = "Calculating…";
-  setStatus(
-    `Calculating averages for ${selectedCodes.size} selected sensor(s)…`,
-    "loading"
-  );
+  setStatus(`Calculating averages for ${selectedCodes.size} selected sensor(s)…`, "loading");
 
   try {
     const response = await apiRequest("/sensors/averages", {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify({
         sensorCodes: Array.from(selectedCodes),
         start: range.start,
@@ -438,19 +531,16 @@ async function calculateAverages() {
     const payload = await response.json();
 
     averagesByCode.clear();
-    payload.sensors.forEach((result) => {
-      averagesByCode.set(result.sensorCode, result);
-    });
+    payload.sensors.forEach((result) => averagesByCode.set(result.sensorCode, result));
+    chartPage = 1;
+    setPickerOpen(false);
     renderAverageChart();
 
     const dateDescription =
-      range.start || range.end
-        ? "within the selected date range"
-        : "across all imported readings";
+      range.start || range.end ? "within the selected date range" : "across all imported readings";
     const missingDescription = payload.missingSensorCodes?.length
       ? ` ${payload.missingSensorCodes.length} sensor(s) were not found.`
       : "";
-
     setStatus(
       `Calculated ${payload.returnedSensorCount} sensor average(s) ${dateDescription}.${missingDescription}`,
       payload.missingSensorCodes?.length ? "warning" : "success"
@@ -467,83 +557,108 @@ async function calculateAverages() {
 
 async function loadSensors() {
   if (!tableBody) return;
-
   try {
     sensors = await apiGet("/sensors?includeLatest=true");
-    sensors.sort((left, right) =>
-      String(left.displayName || left.sensorCode).localeCompare(
-        String(right.displayName || right.sensorCode)
-      )
-    );
-    renderTable();
+    sensors.sort((left, right) => sensorName(left).localeCompare(sensorName(right)));
+    populateFilterOptions();
+    renderPicker();
     setStatus(
-      `Choose from ${sensors.length} available sensors. Averages are displayed as a graph after calculation.`
+      `${sensors.length} sensors are available. Open the sensor picker to search and select them.`
     );
   } catch (error) {
     console.error("Could not load sensors for averages:", error);
     setStatus(error.message || "Could not load the sensor list.", "error");
     tableBody.innerHTML = `
-      <tr>
-        <td colspan="5" class="sensor-average-empty">
-          Could not load sensors from the API.
-        </td>
-      </tr>`;
+      <tr><td colspan="4" class="sensor-average-empty">Could not load sensors from the API.</td></tr>`;
   }
 }
 
-searchInput?.addEventListener("input", renderTable);
+function resetPickerToFirstPage() {
+  pickerPage = 1;
+  renderPicker();
+}
+
+pickerToggle?.addEventListener("click", () => setPickerOpen(pickerPanel?.hidden));
+pickerClose?.addEventListener("click", () => setPickerOpen(false));
+
+[searchInput, categoryFilter, unitFilter, selectedOnlyFilter].forEach((control) => {
+  control?.addEventListener(control?.type === "search" ? "input" : "change", resetPickerToFirstPage);
+});
+
+clearFiltersButton?.addEventListener("click", () => {
+  if (searchInput) searchInput.value = "";
+  if (categoryFilter) categoryFilter.value = "";
+  if (unitFilter) unitFilter.value = "";
+  if (selectedOnlyFilter) selectedOnlyFilter.checked = false;
+  resetPickerToFirstPage();
+});
+
+pickerPrevious?.addEventListener("click", () => {
+  pickerPage -= 1;
+  renderPicker();
+});
+
+pickerNext?.addEventListener("click", () => {
+  pickerPage += 1;
+  renderPicker();
+});
+
+selectPageButton?.addEventListener("click", () => {
+  invalidateResultsAfterSelectionChange();
+  pickerPageData().rows.forEach((sensor) => selectedCodes.add(sensor.sensorCode));
+  renderPicker();
+});
 
 tableBody?.addEventListener("change", (event) => {
   const checkbox = event.target.closest(".sensor-average-checkbox");
   if (!checkbox) return;
-
   invalidateResultsAfterSelectionChange();
-  if (checkbox.checked) {
-    selectedCodes.add(checkbox.value);
-  } else {
-    selectedCodes.delete(checkbox.value);
-  }
-  renderTable();
+  if (checkbox.checked) selectedCodes.add(checkbox.value);
+  else selectedCodes.delete(checkbox.value);
+  renderPicker();
 });
 
-selectAllCheckbox?.addEventListener("change", () => {
+selectedPreview?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-average-sensor]");
+  if (!button) return;
   invalidateResultsAfterSelectionChange();
-  visibleSensors().forEach((sensor) => {
-    if (selectAllCheckbox.checked) {
-      selectedCodes.add(sensor.sensorCode);
-    } else {
-      selectedCodes.delete(sensor.sensorCode);
-    }
-  });
-  renderTable();
-});
-
-selectVisibleButton?.addEventListener("click", () => {
-  invalidateResultsAfterSelectionChange();
-  visibleSensors().forEach((sensor) => selectedCodes.add(sensor.sensorCode));
-  renderTable();
+  selectedCodes.delete(button.dataset.removeAverageSensor);
+  renderPicker();
 });
 
 clearButton?.addEventListener("click", () => {
   selectedCodes.clear();
   averagesByCode.clear();
   hideAverageChart();
-  renderTable();
+  renderPicker();
   setStatus("Selection cleared.");
 });
 
 calculateButton?.addEventListener("click", calculateAverages);
-chartUnitSelect?.addEventListener("change", renderAverageChart);
+
+chartUnitSelect?.addEventListener("change", () => {
+  chartPage = 1;
+  renderAverageChart();
+});
+chartSortSelect?.addEventListener("change", () => {
+  chartPage = 1;
+  renderAverageChart();
+});
+chartPrevious?.addEventListener("click", () => {
+  chartPage -= 1;
+  renderAverageChart();
+});
+chartNext?.addEventListener("click", () => {
+  chartPage += 1;
+  renderAverageChart();
+});
 
 [startDateInput, endDateInput].forEach((input) => {
   input?.addEventListener("change", () => {
-    clearCalculatedResults(
-      "Date range changed. Calculate again to update the graph."
-    );
+    clearCalculatedResults("Date range changed. Calculate again to update the graph.");
   });
 });
 
-// Re-render the canvas when the shared light/dark theme changes.
 new MutationObserver(() => {
   if (averagesByCode.size > 0) renderAverageChart();
 }).observe(document.documentElement, {

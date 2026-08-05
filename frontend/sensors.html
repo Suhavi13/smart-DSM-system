@@ -11,7 +11,7 @@
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="sensor-averages.css?v=2" />
+    <link rel="stylesheet" href="sensor-averages.css?v=3" />
   </head>
   <body>
     <!-- Shared application header and primary navigation -->
@@ -39,7 +39,7 @@
       </nav>
     </header>
 
-    <!-- Sensor summaries, filtering, chart, and inventory table -->
+    <!-- Sensor summaries, average explorer, and inventory table -->
     <main class="page-layout sensors-page">
       <section class="dashboard-heading">
         <div>
@@ -47,11 +47,8 @@
           <h1>Building sensors</h1>
           <p></p>
         </div>
-        <!-- Search controls filter the visible sensor rows on the frontend. -->
         <div class="search-box">
-          <label class="sr-only" for="sensorFilterField"
-            >Filter sensors by</label
-          >
+          <label class="sr-only" for="sensorFilterField">Filter sensors by</label>
           <select id="sensorFilterField" aria-label="Filter sensors by">
             <option value="all">All fields</option>
             <option value="id">Sensor ID</option>
@@ -64,40 +61,35 @@
         </div>
       </section>
 
-      <!-- Summary cards are filled from the current sensor data set. -->
       <section class="sensor-summary-grid" aria-label="Sensor summary">
         <article class="sensor-summary-card">
           <span>Total sensors</span><strong id="totalSensors">0</strong>
         </article>
         <article class="sensor-summary-card sensor-online">
-          <span>Sensors with imported readings</span
-          ><strong id="onlineSensors">123</strong>
+          <span>Sensors with imported readings</span><strong id="onlineSensors">123</strong>
         </article>
         <article class="sensor-summary-card sensor-offline">
-          <span>Sensors without imported readings</span
-          ><strong id="offlineSensors">0</strong>
+          <span>Sensors without imported readings</span><strong id="offlineSensors">0</strong>
         </article>
       </section>
 
-      <!-- Sensor-average explorer backed by the imported historical readings. -->
+      <!-- Compact sensor-average explorer backed by imported historical readings. -->
       <section
         class="dashboard-panel sensor-average-panel"
         aria-labelledby="sensorAverageHeading"
       >
         <div class="panel-heading sensor-average-heading">
           <div>
-            <h2 id="sensorAverageHeading">Sensor reading averages</h2>
+            <h2 id="sensorAverageHeading">Sensor average explorer</h2>
             <p>
-              Select sensors and compare their average imported readings in a graph.
-              Sensors with different units are displayed in separate graph groups.
+              Select sensors, choose an optional date range, and compare their
+              average imported readings.
             </p>
           </div>
-          <strong id="averageSelectedCount" class="sensor-selection-count"
-            >0 selected</strong
-          >
+          <strong id="averageSelectedCount" class="sensor-selection-count">0 selected</strong>
         </div>
 
-        <div class="sensor-average-controls">
+        <div class="sensor-average-controls sensor-average-date-controls">
           <label>
             Start date (optional)
             <input id="averageStartDate" type="date" />
@@ -106,19 +98,31 @@
             End date (optional)
             <input id="averageEndDate" type="date" />
           </label>
-          <label class="sensor-average-search-label">
-            Find a sensor
-            <input
-              id="averageSensorSearch"
-              type="search"
-              placeholder="Search by ID, name, type, unit, or location"
-            />
-          </label>
         </div>
 
-        <div class="sensor-average-actions" aria-label="Sensor selection actions">
-          <button id="selectVisibleAverageSensors" type="button" class="btn btn-secondary">
-            Select visible
+        <section class="sensor-selected-summary" aria-labelledby="selectedSensorsHeading">
+          <div class="sensor-selected-summary-heading">
+            <div>
+              <h3 id="selectedSensorsHeading">Selected sensors</h3>
+              <p id="averageSelectedHelp">No sensors selected yet.</p>
+            </div>
+          </div>
+          <div
+            id="averageSelectedPreview"
+            class="sensor-selected-preview"
+            aria-live="polite"
+          ></div>
+        </section>
+
+        <div class="sensor-average-actions" aria-label="Sensor average actions">
+          <button
+            id="toggleAverageSensorPicker"
+            type="button"
+            class="btn btn-secondary"
+            aria-expanded="false"
+            aria-controls="averageSensorPicker"
+          >
+            Choose sensors
           </button>
           <button id="clearAverageSensors" type="button" class="btn btn-secondary">
             Clear selection
@@ -132,6 +136,89 @@
           Loading the sensor list…
         </p>
 
+        <!-- Hidden by default so the full list never overwhelms the page. -->
+        <section
+          id="averageSensorPicker"
+          class="sensor-picker-panel"
+          aria-labelledby="sensorPickerHeading"
+          hidden
+        >
+          <div class="sensor-picker-heading">
+            <div>
+              <h3 id="sensorPickerHeading">Choose from all sensors</h3>
+              <p id="sensorPickerResultCount">Loading sensors…</p>
+            </div>
+            <button
+              id="closeAverageSensorPicker"
+              type="button"
+              class="sensor-picker-close"
+              aria-label="Close sensor picker"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="sensor-picker-filters">
+            <label class="sensor-picker-search">
+              Search
+              <input
+                id="averageSensorSearch"
+                type="search"
+                placeholder="ID, name, type, unit, or location"
+              />
+            </label>
+            <label>
+              Type
+              <select id="averageSensorCategory">
+                <option value="">All types</option>
+              </select>
+            </label>
+            <label>
+              Unit
+              <select id="averageSensorUnit">
+                <option value="">All units</option>
+              </select>
+            </label>
+            <label class="sensor-picker-selected-only">
+              <input id="averageSelectedOnly" type="checkbox" />
+              <span>Selected only</span>
+            </label>
+          </div>
+
+          <div class="sensor-picker-bulk-actions">
+            <button id="selectAverageSensorPage" type="button" class="btn btn-secondary">
+              Select this page
+            </button>
+            <button id="clearAverageSensorFilters" type="button" class="btn btn-secondary">
+              Clear filters
+            </button>
+          </div>
+
+          <div class="sensor-average-table-wrap">
+            <table class="sensor-average-table">
+              <thead>
+                <tr>
+                  <th class="sensor-average-select-column">Select</th>
+                  <th>Sensor</th>
+                  <th>Type</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody id="sensorAverageTableBody"></tbody>
+            </table>
+          </div>
+
+          <nav class="sensor-picker-pagination" aria-label="Sensor picker pages">
+            <button id="averagePickerPrevious" type="button" class="btn btn-secondary">
+              Previous
+            </button>
+            <span id="averagePickerPage">Page 1 of 1</span>
+            <button id="averagePickerNext" type="button" class="btn btn-secondary">
+              Next
+            </button>
+          </nav>
+        </section>
+
         <section
           id="sensorAverageChartPanel"
           class="sensor-average-chart-panel"
@@ -140,55 +227,48 @@
         >
           <div class="sensor-average-chart-heading">
             <div>
-              <h3 id="sensorAverageChartHeading">Average readings graph</h3>
+              <h3 id="sensorAverageChartHeading">Average readings</h3>
               <p id="sensorAverageChartSummary" aria-live="polite"></p>
             </div>
-            <label id="averageChartUnitControl" class="sensor-average-unit-control">
-              Graph unit
-              <select id="averageChartUnit" aria-label="Choose the unit shown in the graph"></select>
-            </label>
-          </div>
-          <p id="sensorAverageChartEmpty" class="sensor-average-chart-empty" hidden></p>
-          <div class="sensor-average-chart-scroll">
-            <div id="sensorAverageChartFrame" class="sensor-average-chart-frame">
-              <canvas
-                id="sensorAverageChart"
-                aria-label="Horizontal bar graph comparing selected sensor average readings"
-              ></canvas>
+            <div class="sensor-average-chart-controls">
+              <label id="averageChartUnitControl" class="sensor-average-unit-control">
+                Graph unit
+                <select id="averageChartUnit" aria-label="Choose the unit shown in the graph"></select>
+              </label>
+              <label class="sensor-average-unit-control">
+                Sort bars
+                <select id="averageChartSort" aria-label="Sort graph bars">
+                  <option value="name">Sensor name</option>
+                  <option value="high">Highest average</option>
+                  <option value="low">Lowest average</option>
+                </select>
+              </label>
             </div>
           </div>
+          <p id="sensorAverageChartEmpty" class="sensor-average-chart-empty" hidden></p>
+          <div id="sensorAverageChartFrame" class="sensor-average-chart-frame">
+            <canvas
+              id="sensorAverageChart"
+              aria-label="Horizontal bar graph comparing selected sensor average readings"
+            ></canvas>
+          </div>
+          <nav
+            id="averageChartPagination"
+            class="sensor-chart-pagination"
+            aria-label="Average graph pages"
+            hidden
+          >
+            <button id="averageChartPrevious" type="button" class="btn btn-secondary">
+              Previous bars
+            </button>
+            <span id="averageChartPage">Page 1 of 1</span>
+            <button id="averageChartNext" type="button" class="btn btn-secondary">
+              Next bars
+            </button>
+          </nav>
         </section>
-
-        <div class="sensor-average-table-heading">
-          <h3>Choose sensors</h3>
-          <p>Use the checkboxes below, then select Calculate averages.</p>
-        </div>
-        <div class="sensor-average-table-wrap">
-          <table class="sensor-average-table">
-            <thead>
-              <tr>
-                <th class="sensor-average-select-column">
-                  <label class="sensor-average-select-all">
-                    <input
-                      id="averageSelectAll"
-                      type="checkbox"
-                      aria-label="Select all visible sensors"
-                    />
-                    <span>Select</span>
-                  </label>
-                </th>
-                <th>Sensor ID</th>
-                <th>Sensor name</th>
-                <th>Type</th>
-                <th>Unit</th>
-              </tr>
-            </thead>
-            <tbody id="sensorAverageTableBody"></tbody>
-          </table>
-        </div>
       </section>
 
-      <!-- Sensor inventory table; script.js renders the body rows. -->
       <section class="panel table-panel sensor-table-panel">
         <div class="panel-heading">
           <div>
@@ -214,14 +294,13 @@
       </section>
     </main>
 
-    <!-- Shared footer and sensor data scripts -->
     <footer class="site-footer"><p></p></footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>
     <script type="module" src="script.js?v=sensor-averages-1"></script>
     <script type="module" src="backend-data.js"></script>
-    <script type="module" src="sensor-averages.js?v=2"></script>
+    <script type="module" src="sensor-averages.js?v=3"></script>
     <script type="module" src="auth-ui.js?v=firebase-auth-1"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-/* Sensor average selection and results table. */
+/* Compact sensor-average explorer. */
 .sensor-average-panel {
   overflow: hidden;
 }
@@ -18,15 +18,17 @@
 
 .sensor-average-controls {
   display: grid;
-  grid-template-columns:
-    minmax(150px, 0.7fr)
-    minmax(150px, 0.7fr)
-    minmax(260px, 1.6fr);
   gap: 0.75rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.9rem;
 }
 
-.sensor-average-controls label {
+.sensor-average-date-controls {
+  grid-template-columns: repeat(2, minmax(170px, 260px));
+}
+
+.sensor-average-controls label,
+.sensor-picker-filters label,
+.sensor-average-unit-control {
   display: grid;
   gap: 0.35rem;
   color: var(--secondary);
@@ -34,7 +36,10 @@
   font-weight: 700;
 }
 
-.sensor-average-controls input {
+.sensor-average-controls input,
+.sensor-picker-filters input[type="search"],
+.sensor-picker-filters select,
+.sensor-average-unit-control select {
   width: 100%;
   min-width: 0;
   min-height: 42px;
@@ -45,14 +50,98 @@
   color: #000000;
 }
 
-.sensor-average-actions {
+.sensor-selected-summary {
+  margin-bottom: 0.85rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+
+.sensor-selected-summary-heading h3,
+.sensor-picker-heading h3,
+.sensor-average-chart-heading h3 {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 1rem;
+}
+
+.sensor-selected-summary-heading p,
+.sensor-picker-heading p,
+.sensor-average-chart-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.sensor-selected-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.sensor-selected-preview:empty {
+  display: none;
+}
+
+.sensor-selected-chip,
+.sensor-selected-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.sensor-selected-chip {
+  gap: 0.4rem;
+  max-width: min(320px, 100%);
+  padding: 0.28rem 0.35rem 0.28rem 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--secondary);
+}
+
+.sensor-selected-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sensor-selected-chip button {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  color: var(--secondary);
+  cursor: pointer;
+  place-items: center;
+}
+
+.sensor-selected-more {
+  padding: 0.3rem 0.7rem;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.sensor-average-actions,
+.sensor-picker-bulk-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
+}
+
+.sensor-average-actions {
   margin-bottom: 0.75rem;
 }
 
-.sensor-average-actions .btn {
+.sensor-average-actions .btn,
+.sensor-picker-bulk-actions .btn {
   min-height: 40px;
 }
 
@@ -72,9 +161,76 @@
   color: #9f1239;
 }
 
+.sensor-picker-panel {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sensor-picker-panel[hidden],
+.sensor-average-chart-panel[hidden],
+.sensor-average-unit-control[hidden],
+.sensor-chart-pagination[hidden] {
+  display: none;
+}
+
+.sensor-picker-heading,
+.sensor-average-chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.sensor-picker-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-strong);
+  color: var(--secondary);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sensor-picker-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.6fr) minmax(140px, 0.7fr) minmax(120px, 0.6fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.sensor-picker-selected-only {
+  display: flex !important;
+  min-height: 42px;
+  align-items: center;
+  gap: 0.45rem !important;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  cursor: pointer;
+}
+
+.sensor-picker-selected-only input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--midnight-plum);
+}
+
+.sensor-picker-bulk-actions {
+  margin-bottom: 0.7rem;
+}
+
 .sensor-average-table-wrap {
-  max-height: 500px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
 }
@@ -86,24 +242,25 @@
 
 .sensor-average-table th,
 .sensor-average-table td {
-  padding: 0.8rem 0.9rem;
+  padding: 0.72rem 0.8rem;
   border-bottom: 1px solid var(--border);
   text-align: left;
-  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .sensor-average-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--surface-strong);
   color: var(--secondary);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .sensor-average-table td {
   color: #000000;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
+}
+
+.sensor-average-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .sensor-average-table tbody tr:nth-child(even) {
@@ -119,28 +276,29 @@
 }
 
 .sensor-average-select-column {
-  width: 78px;
+  width: 72px;
   text-align: center !important;
 }
 
-.sensor-average-select-all {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-}
-
-.sensor-average-checkbox,
-#averageSelectAll {
+.sensor-average-checkbox {
   width: 18px;
   height: 18px;
   accent-color: var(--midnight-plum);
   cursor: pointer;
 }
 
-.sensor-average-result {
-  color: var(--secondary) !important;
-  font-weight: 800;
+.sensor-picker-name {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sensor-picker-name strong {
+  color: var(--secondary);
+}
+
+.sensor-picker-name small {
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .sensor-average-empty {
@@ -149,14 +307,73 @@
   text-align: center !important;
 }
 
-html[data-theme="dark"] .sensor-average-controls input {
+.sensor-picker-pagination,
+.sensor-chart-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.sensor-picker-pagination span,
+.sensor-chart-pagination span {
+  min-width: 110px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sensor-average-chart-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sensor-average-chart-controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.sensor-average-unit-control {
+  flex: 0 0 180px;
+}
+
+.sensor-average-chart-frame {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  min-height: 300px;
+}
+
+.sensor-average-chart-empty {
+  margin: 0;
+  padding: 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+html[data-theme="dark"] .sensor-average-controls input,
+html[data-theme="dark"] .sensor-picker-filters input[type="search"],
+html[data-theme="dark"] .sensor-picker-filters select,
+html[data-theme="dark"] .sensor-average-unit-control select,
+html[data-theme="dark"] .sensor-selected-chip {
   border-color: #475569;
   background: #101827;
   color: #e5edf8;
 }
 
 html[data-theme="dark"] .sensor-selection-count,
-html[data-theme="dark"] .sensor-average-table th {
+html[data-theme="dark"] .sensor-average-table th,
+html[data-theme="dark"] .sensor-selected-summary,
+html[data-theme="dark"] .sensor-picker-selected-only {
   background: var(--surface-strong);
   color: #dbe7f5;
 }
@@ -180,133 +397,52 @@ html[data-theme="dark"] .sensor-average-status[data-state="error"] {
 }
 
 @media (max-width: 900px) {
-  .sensor-average-controls {
+  .sensor-picker-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sensor-average-search-label {
+  .sensor-picker-search {
     grid-column: 1 / -1;
   }
 }
 
-@media (max-width: 620px) {
-  .sensor-average-heading {
+@media (max-width: 680px) {
+  .sensor-average-heading,
+  .sensor-picker-heading,
+  .sensor-average-chart-heading {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .sensor-average-controls {
+  .sensor-average-date-controls,
+  .sensor-picker-filters {
     grid-template-columns: 1fr;
   }
 
-  .sensor-average-search-label {
+  .sensor-picker-search {
     grid-column: auto;
   }
 
   .sensor-average-actions .btn {
     width: 100%;
   }
-}
 
-/* Average-results graph shown above the sensor selector. */
-.sensor-average-chart-panel {
-  margin-bottom: 1.2rem;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-}
-
-.sensor-average-chart-panel[hidden],
-.sensor-average-unit-control[hidden] {
-  display: none;
-}
-
-.sensor-average-chart-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.85rem;
-}
-
-.sensor-average-chart-heading h3,
-.sensor-average-table-heading h3 {
-  margin: 0;
-  color: var(--secondary);
-  font-size: 1rem;
-}
-
-.sensor-average-chart-heading p,
-.sensor-average-table-heading p {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.sensor-average-unit-control {
-  display: grid;
-  flex: 0 0 min(220px, 35%);
-  gap: 0.35rem;
-  color: var(--secondary);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.sensor-average-unit-control select {
-  min-height: 40px;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--white);
-  color: #000000;
-}
-
-.sensor-average-chart-scroll {
-  max-height: 650px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.sensor-average-chart-frame {
-  position: relative;
-  width: 100%;
-  min-height: 300px;
-}
-
-.sensor-average-chart-empty {
-  margin: 0;
-  padding: 1.5rem;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.sensor-average-table-heading {
-  margin: 0 0 0.7rem;
-}
-
-html[data-theme="dark"] .sensor-average-chart-panel {
-  background: var(--surface);
-}
-
-html[data-theme="dark"] .sensor-average-unit-control select {
-  border-color: #475569;
-  background: #101827;
-  color: #e5edf8;
-}
-
-@media (max-width: 620px) {
-  .sensor-average-chart-heading {
-    flex-direction: column;
-  }
-
+  .sensor-average-chart-controls,
   .sensor-average-unit-control {
     width: 100%;
   }
 
-  .sensor-average-chart-scroll {
-    max-height: 520px;
+  .sensor-average-unit-control {
+    flex-basis: 100%;
+  }
+
+  .sensor-average-table th:nth-child(3),
+  .sensor-average-table td:nth-child(3) {
+    display: none;
+  }
+
+  .sensor-picker-pagination,
+  .sensor-chart-pagination {
+    flex-wrap: wrap;
   }
 }
