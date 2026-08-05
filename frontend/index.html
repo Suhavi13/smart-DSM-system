@@ -10,7 +10,7 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <link rel="stylesheet" href="styles.css?v=viewer-signup-1" />
+    <link rel="stylesheet" href="styles.css?v=login-labels-16" />
   </head>
   <body class="auth-page">
     <!-- Authentication header shared by sign-in and signup pages. -->
@@ -70,7 +70,10 @@
           </button>
         </div>
 
-        <a href="forgot-password.html" class="auth-link-button forgot-password-button">
+        <a
+          href="forgot-password.html"
+          class="auth-link-button forgot-password-button"
+        >
           Forgot password?
         </a>
 
@@ -108,9 +111,6 @@
 
         <!-- Live status text used for validation errors and redirect messages. -->
         <p id="loginStatus" class="validation-message" role="status"></p>
-        <p class="auth-security-note">
-          New users are automatically registered as Viewers.
-        </p>
         <p class="auth-switch-link">
           Need an account? <a href="signup.html">Create a Viewer account</a>
         </p>
@@ -119,8 +119,30 @@
 
     <footer class="site-footer auth-footer"></footer>
     <!-- Shared theme script first, then sign-in page behavior. -->
-    <script src="config.js?v=firebase-auth-1"></script>
-    <script type="module" src="script.js?v=firebase-auth-1"></script>
-    <script type="module" src="signin.js?v=firebase-auth-1"></script>
+    <script>
+      (() => {
+        const challenge = document.getElementById("captchaChallenge");
+        const input = document.getElementById("captchaInput");
+        const refresh = document.getElementById("captchaRefresh");
+        const characters = "abcdefghijkmnpqrstuvwxyz";
+
+        const generateVisibleCaptcha = () => {
+          let answer = "";
+          for (let index = 0; index < 5; index += 1) {
+            answer += characters[Math.floor(Math.random() * characters.length)];
+          }
+
+          window.GBTAC_CAPTCHA_ANSWER = answer;
+          if (challenge) challenge.textContent = answer;
+          if (input) input.value = "";
+        };
+
+        refresh?.addEventListener("click", generateVisibleCaptcha);
+        generateVisibleCaptcha();
+      })();
+    </script>
+    <script src="config.js?v=viewer-signup-1"></script>
+    <script type="module" src="script.js?v=viewer-signup-1"></script>
+    <script type="module" src="signin.js?v=signin-captcha-1"></script>
   </body>
 </html>

@@ -4,15 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sign in | GBTAC</title>
+    <!-- Load the saved theme before CSS so dark/light mode appears immediately. -->
     <script>
       document.documentElement.dataset.theme =
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <script type="module" crossorigin src="/assets/index-Itj93KPV.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CHHbO8Rv.css">
+    <script type="module" crossorigin src="/assets/index-CQFkOsyR.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D8u4MPg4.css">
   </head>
   <body class="auth-page">
+    <!-- Authentication header shared by sign-in and signup pages. -->
     <header class="topbar auth-topbar">
       <div class="topbar-title">
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
@@ -29,12 +31,11 @@
     </header>
 
     <main class="auth-container">
+      <!-- Sign-in form layout; signin.js handles validation and redirects. -->
       <form id="loginForm" class="auth-form" aria-labelledby="loginHeading">
         <h1 id="loginHeading" class="login-heading">Welcome</h1>
-        <p class="auth-subtitle">
-          Sign in with the email and password you chose.
-        </p>
 
+        <!-- User credentials. -->
         <label for="email">Email</label>
         <input
           id="email"
@@ -48,13 +49,57 @@
         />
 
         <label for="password">Password</label>
+        <div class="password-field">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            maxlength="1024"
+            placeholder="Enter your password"
+            required
+          />
+          <!-- Press and hold the eye icon to reveal the password temporarily. -->
+          <button
+            type="button"
+            class="password-toggle"
+            data-password-toggle
+            data-target="password"
+            aria-label="Show password"
+          >
+            &#128065;
+          </button>
+        </div>
+
+        <a href="signup.html" class="auth-link-button forgot-password-button">
+          Forgot password?
+        </a>
+
+        <!-- Random text captcha shown before the user submits the form. -->
+        <label for="captchaInput">Enter the text below</label>
+        <div class="captcha-row">
+          <div
+            id="captchaChallenge"
+            class="captcha-challenge"
+            aria-live="polite"
+          ></div>
+          <button
+            id="captchaRefresh"
+            type="button"
+            class="captcha-refresh"
+            aria-label="Generate a new captcha"
+          >
+            &#8635;
+          </button>
+        </div>
         <input
-          id="password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          maxlength="1024"
-          placeholder="Enter your password"
+          id="captchaInput"
+          name="captcha"
+          type="text"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder="Enter captcha text"
           required
         />
 
@@ -62,10 +107,8 @@
           Sign in
         </button>
 
+        <!-- Live status text used for validation errors and redirect messages. -->
         <p id="loginStatus" class="validation-message" role="status"></p>
-        <p class="auth-security-note">
-          New users are automatically registered as Viewers.
-        </p>
         <p class="auth-switch-link">
           Need an account? <a href="signup.html">Create a Viewer account</a>
         </p>
@@ -73,6 +116,29 @@
     </main>
 
     <footer class="site-footer auth-footer"></footer>
+    <!-- Shared theme script first, then sign-in page behavior. -->
+    <script>
+      (() => {
+        const challenge = document.getElementById("captchaChallenge");
+        const input = document.getElementById("captchaInput");
+        const refresh = document.getElementById("captchaRefresh");
+        const characters = "abcdefghijkmnpqrstuvwxyz";
+
+        const generateVisibleCaptcha = () => {
+          let answer = "";
+          for (let index = 0; index < 5; index += 1) {
+            answer += characters[Math.floor(Math.random() * characters.length)];
+          }
+
+          window.GBTAC_CAPTCHA_ANSWER = answer;
+          if (challenge) challenge.textContent = answer;
+          if (input) input.value = "";
+        };
+
+        refresh?.addEventListener("click", generateVisibleCaptcha);
+        generateVisibleCaptcha();
+      })();
+    </script>
     <script src="config.js?v=viewer-signup-1"></script>
   </body>
 </html>

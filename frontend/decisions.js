@@ -38,17 +38,65 @@ import { apiRequest } from "./api.js";
     statusElement.classList.toggle("error-message", isError);
   }
 
-  function decisionButtons(card) {
-    return [...card.querySelectorAll("[data-decision-action]")];
+  // Locks decision buttons after a decision is saved.
+  function disableDecisionButtons(card) {
+    card
+      .querySelectorAll("[data-decision-action]")
+      .forEach((button) => {
+        button.disabled = true;
+      });
   }
 
-  function resetButton(card) {
-    return card.querySelector("[data-reset-decision]");
-  }
+  // Shows an accessible in-page confirmation before saving a decision.
+  function confirmDecision(action) {
+    return new Promise((resolve) => {
+      const isApproval = action === "approved";
+      const actionLabel = isApproval ? "approve" : "reject";
+      const overlay = document.createElement("div");
+      overlay.className = "app-dialog-overlay";
+      overlay.innerHTML = `
+        <section
+          class="app-dialog ${isApproval ? "app-dialog-approve" : "app-dialog-reject"}"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="decisionDialogTitle"
+          aria-describedby="decisionDialogMessage"
+        >
+          <span class="app-dialog-icon" aria-hidden="true">${isApproval ? "✓" : "!"}</span>
+          <h2 id="decisionDialogTitle">${isApproval ? "Approve" : "Reject"} recommendation?</h2>
+          <p id="decisionDialogMessage">Do you want to ${actionLabel} this recommendation?</p>
+          <div class="app-dialog-actions">
+            <button type="button" class="btn app-dialog-confirm">Yes</button>
+            <button type="button" class="btn app-dialog-cancel">No</button>
+          </div>
+        </section>
+      `;
 
-  function setDecisionButtonsDisabled(card, disabled) {
-    decisionButtons(card).forEach((button) => {
-      button.disabled = disabled;
+      const confirmButton = overlay.querySelector(".app-dialog-confirm");
+      const cancelButton = overlay.querySelector(".app-dialog-cancel");
+
+      const closeDialog = (confirmed) => {
+        document.removeEventListener("keydown", handleKeydown);
+        overlay.remove();
+        resolve(confirmed);
+      };
+
+      const handleKeydown = (event) => {
+        if (event.key === "Escape") {
+          closeDialog(false);
+        }
+      };
+
+      confirmButton.addEventListener("click", () => closeDialog(true));
+      cancelButton.addEventListener("click", () => closeDialog(false));
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          closeDialog(false);
+        }
+      });
+      document.addEventListener("keydown", handleKeydown);
+      document.body.append(overlay);
+      confirmButton.focus();
     });
   }
 
@@ -232,10 +280,23 @@ import { apiRequest } from "./api.js";
       card.dataset.recommendationVersion || "1"
     );
     const action = button.dataset.decisionAction;
-    if (action !== "approved" && action !== "rejected") return;
 
-    const comment = await requestWorkflowComment(action);
-    if (comment === null) return;
+    if (action !== "approved" && action !== "rejected") {
+      return;
+    }
+
+    if (!(await confirmDecision(action))) {
+      return;
+    }
+
+    const comment = window.prompt(
+      "Add an optional decision comment:",
+      ""
+    );
+
+    if (comment === null) {
+      return;
+    }
 
     setDecisionButtonsDisabled(card, true);
     setCardStatus(card, "Saving decision…");

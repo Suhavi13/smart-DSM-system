@@ -20,9 +20,15 @@
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
       </div>
       <nav class="topnav" aria-label="Primary navigation">
-        <a href="dashboard.html">Dashboard</a>
-        <a href="sensors.html" class="active">Sensors</a>
-        <a href="recommendations.html" data-operator-only hidden>Recommendations</a>
+        <a href="dashboard.html" class="nav-button">Dashboard</a>
+        <a href="sensors.html" class="nav-button active">Sensors</a>
+        <a
+          href="recommendations.html"
+          class="nav-button"
+          data-operator-only
+          hidden
+          >Recommendations</a
+        >
         <button
           type="button"
           class="theme-toggle"
@@ -32,7 +38,9 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
+        <span class="auth-role-badge nav-button" data-auth-user-role
+          >Loading role…</span
+        >
         <button type="button" class="btn btn-secondary" data-sign-out>
           Log out
         </button>
@@ -48,7 +56,9 @@
           <p></p>
         </div>
         <div class="search-box">
-          <label class="sr-only" for="sensorFilterField">Filter sensors by</label>
+          <label class="sr-only" for="sensorFilterField"
+            >Filter sensors by</label
+          >
           <select id="sensorFilterField" aria-label="Filter sensors by">
             <option value="all">All fields</option>
             <option value="id">Sensor ID</option>
@@ -66,10 +76,12 @@
           <span>Total sensors</span><strong id="totalSensors">0</strong>
         </article>
         <article class="sensor-summary-card sensor-online">
-          <span>Sensors with imported readings</span><strong id="onlineSensors">123</strong>
+          <span>Sensors with imported readings</span
+          ><strong id="onlineSensors">123</strong>
         </article>
         <article class="sensor-summary-card sensor-offline">
-          <span>Sensors without imported readings</span><strong id="offlineSensors">0</strong>
+          <span>Sensors without imported readings</span
+          ><strong id="offlineSensors">0</strong>
         </article>
       </section>
 
@@ -86,7 +98,9 @@
               average imported readings.
             </p>
           </div>
-          <strong id="averageSelectedCount" class="sensor-selection-count">0 selected</strong>
+          <strong id="averageSelectedCount" class="sensor-selection-count"
+            >0 selected</strong
+          >
         </div>
 
         <div class="sensor-average-controls sensor-average-date-controls">
@@ -100,7 +114,10 @@
           </label>
         </div>
 
-        <section class="sensor-selected-summary" aria-labelledby="selectedSensorsHeading">
+        <section
+          class="sensor-selected-summary"
+          aria-labelledby="selectedSensorsHeading"
+        >
           <div class="sensor-selected-summary-heading">
             <div>
               <h3 id="selectedSensorsHeading">Selected sensors</h3>
@@ -124,15 +141,27 @@
           >
             Choose sensors
           </button>
-          <button id="clearAverageSensors" type="button" class="btn btn-secondary">
+          <button
+            id="clearAverageSensors"
+            type="button"
+            class="btn btn-secondary"
+          >
             Clear selection
           </button>
-          <button id="calculateSensorAverages" type="button" class="btn btn-primary">
+          <button
+            id="calculateSensorAverages"
+            type="button"
+            class="btn btn-primary"
+          >
             Calculate averages
           </button>
         </div>
 
-        <p id="sensorAverageStatus" class="sensor-average-status" aria-live="polite">
+        <p
+          id="sensorAverageStatus"
+          class="sensor-average-status"
+          aria-live="polite"
+        >
           Loading the sensor list…
         </p>
 
@@ -186,10 +215,18 @@
           </div>
 
           <div class="sensor-picker-bulk-actions">
-            <button id="selectAverageSensorPage" type="button" class="btn btn-secondary">
+            <button
+              id="selectAverageSensorPage"
+              type="button"
+              class="btn btn-secondary"
+            >
               Select this page
             </button>
-            <button id="clearAverageSensorFilters" type="button" class="btn btn-secondary">
+            <button
+              id="clearAverageSensorFilters"
+              type="button"
+              class="btn btn-secondary"
+            >
               Clear filters
             </button>
           </div>
@@ -208,12 +245,23 @@
             </table>
           </div>
 
-          <nav class="sensor-picker-pagination" aria-label="Sensor picker pages">
-            <button id="averagePickerPrevious" type="button" class="btn btn-secondary">
+          <nav
+            class="sensor-picker-pagination"
+            aria-label="Sensor picker pages"
+          >
+            <button
+              id="averagePickerPrevious"
+              type="button"
+              class="btn btn-secondary"
+            >
               Previous
             </button>
             <span id="averagePickerPage">Page 1 of 1</span>
-            <button id="averagePickerNext" type="button" class="btn btn-secondary">
+            <button
+              id="averagePickerNext"
+              type="button"
+              class="btn btn-secondary"
+            >
               Next
             </button>
           </nav>
@@ -231,9 +279,15 @@
               <p id="sensorAverageChartSummary" aria-live="polite"></p>
             </div>
             <div class="sensor-average-chart-controls">
-              <label id="averageChartUnitControl" class="sensor-average-unit-control">
+              <label
+                id="averageChartUnitControl"
+                class="sensor-average-unit-control"
+              >
                 Graph unit
-                <select id="averageChartUnit" aria-label="Choose the unit shown in the graph"></select>
+                <select
+                  id="averageChartUnit"
+                  aria-label="Choose the unit shown in the graph"
+                ></select>
               </label>
               <label class="sensor-average-unit-control">
                 Sort bars
@@ -245,7 +299,11 @@
               </label>
             </div>
           </div>
-          <p id="sensorAverageChartEmpty" class="sensor-average-chart-empty" hidden></p>
+          <p
+            id="sensorAverageChartEmpty"
+            class="sensor-average-chart-empty"
+            hidden
+          ></p>
           <div id="sensorAverageChartFrame" class="sensor-average-chart-frame">
             <canvas
               id="sensorAverageChart"
@@ -258,11 +316,19 @@
             aria-label="Average graph pages"
             hidden
           >
-            <button id="averageChartPrevious" type="button" class="btn btn-secondary">
+            <button
+              id="averageChartPrevious"
+              type="button"
+              class="btn btn-secondary"
+            >
               Previous bars
             </button>
             <span id="averageChartPage">Page 1 of 1</span>
-            <button id="averageChartNext" type="button" class="btn btn-secondary">
+            <button
+              id="averageChartNext"
+              type="button"
+              class="btn btn-secondary"
+            >
               Next bars
             </button>
           </nav>
