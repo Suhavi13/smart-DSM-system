@@ -370,6 +370,10 @@ html[data-theme="dark"] .sensor-selected-chip {
   color: #e5edf8;
 }
 
+html[data-theme="dark"] .sensor-average-heading p {
+  color: #ffffff !important;
+}
+
 html[data-theme="dark"] .sensor-selection-count,
 html[data-theme="dark"] .sensor-average-table th,
 html[data-theme="dark"] .sensor-selected-summary,

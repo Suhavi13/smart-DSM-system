@@ -2845,3 +2845,364 @@ html[data-theme="dark"] .topbar .topbar-wordmark {
   background: #334155;
   border-color: #334155;
 }
+
+
+/* Subtle informational footer note shared across all pages. */
+.site-footer .site-footer-note {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  opacity: 0.72;
+}
+
+body.auth-page .site-footer.auth-footer .site-footer-note {
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Clean, paginated sensor inventory. */
+.sensor-table-panel {
+  overflow: hidden;
+  padding: 0;
+}
+
+.sensor-table-panel .sensor-inventory-heading {
+  min-width: 0;
+  margin: 0;
+  padding: 1.25rem 1.25rem 0;
+  align-items: center;
+}
+
+.sensor-inventory-heading .btn {
+  flex: 0 0 auto;
+}
+
+.sensor-inventory-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(145px, 1fr));
+  gap: 0.85rem;
+  padding: 1rem 1.25rem 1.15rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sensor-inventory-toolbar label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sensor-inventory-toolbar input,
+.sensor-inventory-toolbar select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--white);
+  color: #000000;
+  font: inherit;
+  font-weight: 600;
+}
+
+.sensor-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.sensor-inventory-table {
+  table-layout: fixed;
+  min-width: 840px;
+}
+
+.sensor-inventory-table th,
+.sensor-inventory-table td {
+  padding: 0.82rem 1rem;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.sensor-inventory-table th:first-child {
+  width: 29%;
+}
+
+.sensor-inventory-table th:nth-child(2) {
+  width: 16%;
+}
+
+.sensor-inventory-table th:nth-child(3) {
+  width: 17%;
+}
+
+.sensor-inventory-table th:nth-child(4) {
+  width: 14%;
+}
+
+.sensor-inventory-table th:nth-child(5) {
+  width: 18%;
+}
+
+.sensor-inventory-table th:last-child {
+  width: 6%;
+}
+
+.sensor-inventory-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.sensor-inventory-table tbody .sensor-inventory-row td {
+  font-size: 0.94rem;
+  font-weight: 500;
+}
+
+.sensor-identity,
+.sensor-reading {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.sensor-identity strong,
+.sensor-reading strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sensor-identity span,
+.sensor-reading span,
+.sensor-updated-value {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.sensor-reading-empty strong,
+.sensor-reading-empty span {
+  color: var(--muted);
+}
+
+.sensor-inventory-table .badge {
+  min-width: 0;
+  padding: 0.34rem 0.62rem;
+  font-size: 0.76rem;
+}
+
+.sensor-details-column {
+  text-align: right !important;
+}
+
+.sensor-details-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.sensor-details-toggle:hover,
+.sensor-details-toggle:focus-visible {
+  color: var(--primary);
+}
+
+.sensor-detail-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.sensor-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0.9rem 1.1rem 1rem;
+}
+
+.sensor-detail-grid div {
+  min-width: 0;
+}
+
+.sensor-detail-grid dt {
+  margin-bottom: 0.22rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sensor-detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.sensor-inventory-empty-row td {
+  padding: 3rem 1.25rem !important;
+  text-align: center;
+}
+
+.sensor-inventory-empty-row strong,
+.sensor-inventory-empty-row span {
+  display: block;
+}
+
+.sensor-inventory-empty-row span {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sensor-inventory-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.2rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.sensor-inventory-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.sensor-inventory-pagination .btn {
+  min-height: 2.3rem;
+  padding: 0.48rem 0.75rem;
+}
+
+.sensor-inventory-pagination .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+html[data-theme="dark"] .sensor-inventory-toolbar input,
+html[data-theme="dark"] .sensor-inventory-toolbar select {
+  border-color: #475569;
+  background: #101827;
+  color: #e5edf8;
+}
+
+html[data-theme="dark"] .sensors-page {
+  --secondary: #ffffff;
+}
+
+html[data-theme="dark"] .sensor-detail-row td {
+  background: var(--surface-strong);
+}
+
+html[data-theme="dark"] .sensors-page :is(
+  .sensor-table th,
+  .panel-heading h2,
+  .sensor-details-toggle,
+  .sensor-selection-count,
+  .sensor-average-controls label,
+  .sensor-picker-filters label,
+  .sensor-average-unit-control,
+  .sensor-selected-summary-heading h3,
+  .sensor-picker-heading h3,
+  .sensor-average-chart-heading h3,
+  .sensor-selected-chip,
+  .sensor-selected-chip button,
+  .sensor-picker-close,
+  .sensor-average-table th,
+  .sensor-picker-name strong
+) {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .sensor-inventory-table .badge {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .sensor-details-toggle {
+  color: #70c9ef;
+}
+
+@media (max-width: 980px) {
+  .sensor-inventory-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sensor-inventory-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .sensor-table-panel .sensor-inventory-heading,
+  .sensor-inventory-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sensor-inventory-heading .btn {
+    width: 100%;
+  }
+
+  .sensor-inventory-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sensor-inventory-search {
+    grid-column: auto;
+  }
+
+  .sensor-inventory-table {
+    min-width: 620px;
+  }
+
+  .sensor-inventory-table .sensor-type-column,
+  .sensor-inventory-table .sensor-updated-column {
+    display: none;
+  }
+
+  .sensor-inventory-table th:first-child {
+    width: 38%;
+  }
+
+  .sensor-inventory-table th:nth-child(3) {
+    width: 25%;
+  }
+
+  .sensor-inventory-table th:nth-child(4) {
+    width: 24%;
+  }
+
+  .sensor-inventory-table th:last-child {
+    width: 13%;
+  }
+
+  .sensor-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sensor-inventory-pagination {
+    justify-content: space-between;
+  }
+}

@@ -45,7 +45,7 @@ def generate_recommendation(weather, predicted_power):
                     "content": f"""
 You are an AI assistant for a Smart Building Demand Side Management (DSM) system.
 
-Generate exactly ONE DSM recommendation.
+Generate upto 10 DSM recommendations.
 
 The strategy MUST be:
 

@@ -20,13 +20,9 @@
         <span class="wordmark topbar-wordmark" aria-label="GBTAC">GBTAC</span>
       </div>
       <nav class="topnav" aria-label="Primary navigation">
-        <a href="dashboard.html" class="nav-button">Dashboard</a>
-        <a href="sensors.html" class="nav-button active">Sensors</a>
-        <a
-          href="recommendations.html"
-          class="nav-button"
-          data-operator-only
-          hidden
+        <a href="dashboard.html">Dashboard</a>
+        <a href="sensors.html" class="active">Sensors</a>
+        <a href="recommendations.html" data-operator-only hidden
           >Recommendations</a
         >
         <button
@@ -38,9 +34,7 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <span class="auth-role-badge nav-button" data-auth-user-role
-          >Loading role…</span
-        >
+        <span class="auth-role-badge" data-auth-user-role>Loading role…</span>
         <button type="button" class="btn btn-secondary" data-sign-out>
           Log out
         </button>
@@ -53,21 +47,10 @@
         <div>
           <p class="dashboard-eyebrow"></p>
           <h1>Building sensors</h1>
-          <p></p>
-        </div>
-        <div class="search-box">
-          <label class="sr-only" for="sensorFilterField"
-            >Filter sensors by</label
-          >
-          <select id="sensorFilterField" aria-label="Filter sensors by">
-            <option value="all">All fields</option>
-            <option value="id">Sensor ID</option>
-            <option value="name">Sensor name</option>
-            <option value="type">Type</option>
-            <option value="value">Current value</option>
-          </select>
-          <label class="sr-only" for="sensorSearch">Search sensors</label>
-          <input id="sensorSearch" type="search" placeholder="Search sensors" />
+          <p>
+            Browse the latest imported snapshot and explore historical sensor
+            averages.
+          </p>
         </div>
       </section>
 
@@ -335,36 +318,113 @@
         </section>
       </section>
 
-      <section class="panel table-panel sensor-table-panel">
-        <div class="panel-heading">
+      <section
+        class="panel sensor-table-panel"
+        aria-labelledby="sensorInventoryHeading"
+      >
+        <div class="panel-heading sensor-inventory-heading">
           <div>
-            <h2>Sensor inventory</h2>
-            <p id="sensorResultCount">Showing 0 sensors</p>
+            <h2 id="sensorInventoryHeading">Sensor inventory</h2>
+            <p id="sensorResultCount" aria-live="polite">Loading sensors…</p>
           </div>
+          <button
+            id="resetSensorInventoryFilters"
+            type="button"
+            class="btn btn-secondary"
+          >
+            Reset filters
+          </button>
         </div>
-        <table class="sensor-table">
-          <thead>
-            <tr>
-              <th>Sensor ID</th>
-              <th>Sensor name</th>
-              <th>Type</th>
-              <th>Current value</th>
-              <th>Unit</th>
-              <th>Location</th>
-              <th>Status</th>
-              <th>Last updated</th>
-            </tr>
-          </thead>
-          <tbody id="sensorTableBody"></tbody>
-        </table>
+
+        <div
+          class="sensor-inventory-toolbar"
+          aria-label="Sensor inventory filters"
+        >
+          <label class="sensor-inventory-search">
+            Search
+            <input
+              id="sensorSearch"
+              type="search"
+              placeholder="Sensor ID, name, type, unit, or location"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            Type
+            <select id="sensorTypeFilter">
+              <option value="">All types</option>
+            </select>
+          </label>
+          <label>
+            Data status
+            <select id="sensorStatusFilter">
+              <option value="">All sensors</option>
+              <option value="available">With readings</option>
+              <option value="missing">Without readings</option>
+            </select>
+          </label>
+          <label>
+            Sort by
+            <select id="sensorSortOrder">
+              <option value="name">Sensor name</option>
+              <option value="id">Sensor ID</option>
+              <option value="type">Type</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="sensor-table-scroll">
+          <table class="sensor-table sensor-inventory-table">
+            <thead>
+              <tr>
+                <th>Sensor</th>
+                <th class="sensor-type-column">Type</th>
+                <th>Latest reading</th>
+                <th>Status</th>
+                <th class="sensor-updated-column">Last updated</th>
+                <th class="sensor-details-column">
+                  <span class="sr-only">Details</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="sensorTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="sensor-inventory-footer">
+          <span id="sensorPageSummary">0 sensors</span>
+          <nav
+            class="sensor-inventory-pagination"
+            aria-label="Sensor inventory pages"
+          >
+            <button
+              id="sensorPreviousPage"
+              type="button"
+              class="btn btn-secondary"
+            >
+              Previous
+            </button>
+            <span id="sensorPageIndicator">Page 1 of 1</span>
+            <button id="sensorNextPage" type="button" class="btn btn-secondary">
+              Next
+            </button>
+          </nav>
+        </div>
       </section>
     </main>
 
-    <footer class="site-footer"><p></p></footer>
+    <footer class="site-footer">
+      <p class="site-footer-note">
+        Note: All data provided is for informational and educational purposes
+        only.
+      </p>
+    </footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="config.js"></script>
     <script type="module" src="api.js"></script>
-    <script type="module" src="script.js?v=sensor-averages-1"></script>
+    <!-- <script type="module" src="script.js?v=sensor-inventory-clean-1"></script> -->
+    <script type="module" src="script.js"></script>
+
     <script type="module" src="backend-data.js"></script>
     <script type="module" src="sensor-averages.js?v=3"></script>
     <script type="module" src="auth-ui.js?v=firebase-auth-1"></script>
