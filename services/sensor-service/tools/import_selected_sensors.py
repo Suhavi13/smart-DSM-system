@@ -1,0 +1,155 @@
+"""Import the confirmed sensor inventory spreadsheet into PostgreSQL."""
+
+from pathlib import Path
+import sys
+
+import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+SERVICE_ROOT = Path(__file__).resolve().parents[1]
+for path in (PROJECT_ROOT, SERVICE_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from app.cache_service import cache
+from app.database import SessionLocal
+from app.dashboard_sensors import EXCLUDED_SENSOR_CODES
+from app.models import SensorPoint
+from app.sensor_metadata import get_sensor_metadata
+
+
+# PROJECT_ROOT is defined by the service bootstrap above
+EXCEL_PATH = PROJECT_ROOT / "docs" / "Sensor_Inventory.xlsx"
+SHEET_NAME = "Sheet1"
+
+
+def clean_text(value):
+    """Normalize optional spreadsheet text values."""
+    if pd.isna(value):
+        return None
+    return str(value).strip()
+
+
+def clean_integer(value):
+    """Normalize optional spreadsheet integer values."""
+    if pd.isna(value):
+        return None
+    return int(value)
+
+
+def main():
+    if not EXCEL_PATH.exists():
+        print(f"Excel file not found: {EXCEL_PATH}")
+        return
+
+    df = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
+    df.columns = df.columns.str.strip()
+
+    required_columns = [
+        "Trend Column",
+        "Sensor Code",
+        "Display Name",
+        "Measurement Property",
+    ]
+
+    missing_columns = [
+        column for column in required_columns if column not in df.columns
+    ]
+
+    if missing_columns:
+        print("Missing Excel columns:", ", ".join(missing_columns))
+        print("Columns found:", df.columns.tolist())
+        return
+
+    df = df.dropna(subset=["Trend Column", "Sensor Code"])
+    df = df.drop_duplicates(subset=["Sensor Code"], keep="last")
+    db = SessionLocal()
+
+    try:
+        imported_count = 0
+        updated_count = 0
+        excluded_count = 0
+
+        for _, row in df.iterrows():
+            sensor_code = clean_text(row["Sensor Code"])
+            source_display_name = clean_text(row["Display Name"])
+            measurement_property = clean_integer(
+                row.get("Measurement Property")
+            )
+            metadata = get_sensor_metadata(
+                sensor_code=sensor_code,
+                display_name=source_display_name,
+                measurement_property=measurement_property,
+            )
+
+            sensor_data = {
+                "sensor_code": sensor_code,
+                "trend_column": clean_text(row["Trend Column"]),
+                "display_name": metadata["display_name"],
+                "measurement_property": measurement_property,
+                "category": (
+                    clean_text(row.get("Category"))
+                    or metadata.get("category")
+                ),
+                "priority": clean_text(row.get("Priority")),
+                "why_selected": clean_text(row.get("Why selected")),
+                "dashboard_feature": clean_text(
+                    row.get("Dashboard feature")
+                ),
+                "raw_unit": metadata["raw_unit"],
+                "display_unit": metadata["display_unit"],
+                "scale_factor": metadata["scale_factor"],
+                "sign_convention": metadata["sign_convention"],
+                "data_type": metadata["data_type"],
+                "location": metadata["location"],
+                # Keep the full Sheet1 inventory in PostgreSQL, but do not
+                # expose points the client asked us to leave out.
+                "is_selected": sensor_code not in EXCLUDED_SENSOR_CODES,
+            }
+
+            if sensor_code in EXCLUDED_SENSOR_CODES:
+                excluded_count += 1
+
+            existing_sensor = (
+                db.query(SensorPoint)
+                .filter(SensorPoint.sensor_code == sensor_code)
+                .first()
+            )
+
+            if existing_sensor:
+                for key, value in sensor_data.items():
+                    setattr(existing_sensor, key, value)
+                updated_count += 1
+            else:
+                db.add(SensorPoint(**sensor_data))
+                imported_count += 1
+
+        db.commit()
+        total_count = imported_count + updated_count
+        print(f"Sheet imported: {SHEET_NAME}")
+        print(f"Inventory rows processed: {total_count}")
+        print(f"New sensors imported: {imported_count}")
+        print(f"Existing sensors updated: {updated_count}")
+        print(f"Client-excluded sensors hidden: {excluded_count}")
+        print(
+            "All other Sheet1 sensors are marked for API display and reading "
+            "import."
+        )
+        print(
+            "Naming-derived units remain provisional unless a sensor has a "
+            "confirmed override in services/sensor-service/app/sensor_metadata.py."
+        )
+        deleted_keys = cache.clear_namespace()
+        print(f"Cleared {deleted_keys} cached dashboard response(s).")
+
+    except Exception as error:
+        db.rollback()
+        print(f"Import failed: {error}")
+        raise
+
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

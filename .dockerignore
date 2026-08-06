@@ -19,4 +19,5 @@ data
 **/.env
 
 .vscode
+
 .idea

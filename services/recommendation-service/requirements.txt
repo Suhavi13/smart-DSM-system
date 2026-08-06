@@ -1,0 +1,10 @@
+
+fastapi
+uvicorn[standard]
+SQLAlchemy
+psycopg2-binary
+python-dotenv
+firebase-admin>=7.5,<8.0
+pydantic
+httpx
+openai>=1.0,<3.0
