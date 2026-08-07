@@ -1,4 +1,4 @@
-"""Pydantic contracts owned by the sensor service."""
+"""FastAPI endpoints expect to receive and what shape they return to the frontend.."""
 
 from datetime import datetime
 from typing import Optional, Literal

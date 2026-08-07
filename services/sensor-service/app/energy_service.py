@@ -5,9 +5,7 @@ The project contains two distinct measurement types:
 * Direct power sensors whose source values are already watts (W).
 * A cumulative totalized meter whose source values are kilowatt-hours (kWh).
 
-Do not calculate a reading-to-reading delta for a direct W sensor. Deltas are
-only used for the cumulative kWh meter when calculating energy used during a
-period.
+
 """
 
 from collections import defaultdict

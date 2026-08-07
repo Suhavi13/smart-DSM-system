@@ -1,0 +1,239 @@
+name: dsm-microservices
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - ./.env.compose
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  auth-service:
+    image: dsm/auth-service:v1
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    env_file:
+      - ./.env.compose
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  sensor-service:
+    image: dsm/sensor-service:v1
+    build:
+      context: .
+      dockerfile: services/sensor-service/Dockerfile
+    env_file:
+      - ./.env.compose
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      REDIS_URL: redis://redis:6379/0
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  weather-service:
+    image: dsm/weather-service:v1
+    build:
+      context: .
+      dockerfile: services/weather-service/Dockerfile
+    env_file:
+      - ./.env.compose
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    ports:
+      - "8003:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  recommendation-service:
+    image: dsm/recommendation-service:v1
+    build:
+      context: .
+      dockerfile: services/recommendation-service/Dockerfile
+    env_file:
+      - ./.env.compose
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      WEATHER_SERVICE_URL: http://weather-service:8000
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    ports:
+      - "8004:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sensor-service:
+        condition: service_healthy
+      weather-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  decision-service:
+    image: dsm/decision-service:v1
+    build:
+      context: .
+      dockerfile: services/decision-service/Dockerfile
+    env_file:
+      - ./.env.compose
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    ports:
+      - "8005:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      recommendation-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  frontend:
+    image: dsm/frontend:v1
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      sensor-service:
+        condition: service_healthy
+      weather-service:
+        condition: service_healthy
+      recommendation-service:
+        condition: service_healthy
+      decision-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # This one-off profile imports the spreadsheet and historical CSV into the
+  # Docker PostgreSQL database without copying either data file into the image.
+  sensor-import:
+    image: dsm/sensor-service:v1
+    build:
+      context: .
+      dockerfile: services/sensor-service/Dockerfile
+    profiles: ["import"]
+    env_file:
+      - ./.env.compose
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./data:/app/data:ro
+      - ./docs:/app/docs:ro
+    depends_on:
+      sensor-service:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - python -m tools.import_selected_sensors && python -m tools.import_sensor_readings
+
+volumes:
+  postgres_data:

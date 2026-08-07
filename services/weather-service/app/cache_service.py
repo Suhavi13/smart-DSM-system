@@ -1,7 +1,5 @@
 """Redis-backed JSON cache used by dashboard and external API endpoints.
 
-Redis is an optimization, not the source of truth. Cache failures are logged
-and requests continue against PostgreSQL or the external provider.
 """
 
 from __future__ import annotations

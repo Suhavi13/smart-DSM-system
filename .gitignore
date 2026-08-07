@@ -5,21 +5,36 @@ data/
 
 # Environment variables and secrets
 .env
+.env.*
+!.env.example
+!.env.compose.example
 backend/.env
 services/**/.env
+secrets/*
+!secrets/README.md
+secrets/
+*.json
 
-# Python virtual environments
+# Python virtual environments and caches
 .venv/
 backend/.venv/
 services/**/.venv/
-
-frontend/node_modules/
-
 __pycache__/
 *.pyc
+.pytest_cache/
 
-.env.*
-!.env.example
-
+# Frontend dependencies and generated output
+frontend/node_modules/
 frontend/.vite/
 frontend/dist/
+
+# Local database or Docker artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# Editor/OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
