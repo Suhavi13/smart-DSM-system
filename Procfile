@@ -1,1 +1,0 @@
-web: gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} backend.app.main:app
