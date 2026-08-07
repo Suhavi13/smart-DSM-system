@@ -21,7 +21,9 @@
       <nav class="topnav" aria-label="Primary navigation">
         <a href="dashboard.html" class="active">Dashboard</a>
         <a href="sensors.html">Sensors</a>
-        <a href="recommendations.html" data-operator-only hidden>Recommendations</a>
+        <a href="recommendations.html" data-operator-only hidden
+          >Recommendations</a
+        >
         <button
           type="button"
           class="theme-toggle"
@@ -31,7 +33,9 @@
           <span class="theme-toggle-icon" aria-hidden="true">☾</span>
           <span class="theme-toggle-label">Dark mode</span>
         </button>
-        <button type="button" class="btn btn-secondary" data-sign-out>Log out</button>
+        <button type="button" class="btn btn-secondary" data-sign-out>
+          Log out
+        </button>
       </nav>
     </header>
 
@@ -58,9 +62,7 @@
         <article class="summary-card summary-humidity">
           <div class="summary-card-top"><span>Outdoor humidity</span></div>
           <p class="summary-value" id="summaryOutdoorHumidity">&mdash;</p>
-          <p class="summary-note" id="summaryWeatherCacheStatus">
-            Open-Meteo via backend
-          </p>
+          <p class="summary-note" id="summaryWeatherCacheStatus">Open-Meteo</p>
         </article>
         <!-- <article class="summary-card summary-energy">
           <div class="summary-card-top"><span>Latest period energy</span></div>
@@ -247,7 +249,11 @@
           </p>
         </article>
 
-        <article class="dashboard-panel recommendation-preview" data-operator-only hidden>
+        <article
+          class="dashboard-panel recommendation-preview"
+          data-operator-only
+          hidden
+        >
           <div class="panel-heading">
             <h2>Recommendation</h2>
           </div>
@@ -281,7 +287,10 @@
 
     <!-- Shared footer and dashboard data scripts -->
     <footer class="site-footer">
-      <p class="site-footer-note">Note: All data provided is for informational and educational purposes only.</p>
+      <p class="site-footer-note">
+        Note: All data provided is for informational and educational purposes
+        only.
+      </p>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js?v=6"></script>

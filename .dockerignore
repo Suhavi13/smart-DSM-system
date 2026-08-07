@@ -1,0 +1,42 @@
+# Git and editor metadata
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Secrets and environment files
+.env
+.env.*
+**/.env
+secrets
+
+# Python local files
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+
+# Frontend local/generated files
+frontend/node_modules
+frontend/.vite
+frontend/dist
+
+# Large source data is mounted only by the one-off importer.
+data
+docs
+database
+*.csv
+*.xlsx
+*.zip
+
+# The old monolith is not needed by the microservice images.
+backend
+
+# Miscellaneous local output
+*.db
+*.sqlite
+*.sqlite3
+npm-debug.log*

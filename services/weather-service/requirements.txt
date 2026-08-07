@@ -1,0 +1,8 @@
+
+fastapi
+uvicorn[standard]
+python-dotenv
+firebase-admin>=7.5,<8.0
+httpx
+redis>=5.0,<7.0
+pydantic

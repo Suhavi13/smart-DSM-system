@@ -19,6 +19,8 @@ const numberPattern = /\d/;
 const specialCharacterPattern = /[^A-Za-z0-9\s]/;
 const spacePattern = /\s/;
 
+const authenticationModule = import("./auth.js?v=signup-captcha-1");
+
 // Shows validation, success, and service messages under the form.
 function setStatus(message, isError = false) {
   if (!signupStatus) return;

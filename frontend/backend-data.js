@@ -101,7 +101,7 @@ function buildSensorReadingsPath({
     document.getElementById(intervalInputId)?.value || "hour";
   const parameters = new URLSearchParams({
     interval,
-    limit: "500"
+    limit: "200"
   });
 
   if (startDate) {
@@ -124,7 +124,7 @@ function buildIndoorConditionsPath() {
     document.getElementById("conditionsInterval")?.value || "hour";
   const parameters = new URLSearchParams({
     interval,
-    limit: "500"
+    limit: "200"
   });
 
   if (startDate) {

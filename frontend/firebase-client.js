@@ -27,8 +27,7 @@ if (missingKeys.length > 0) {
 const firebaseApp = getApps()[0] || initializeApp(firebaseConfig);
 export const firebaseAuth = getAuth(firebaseApp);
 
-// Keep the user signed in across refreshes. Firebase still refreshes short-lived
-// ID tokens automatically and the API verifies every token server-side.
+// Keep the user signed in across refreshes
 export const firebaseReady = setPersistence(
   firebaseAuth,
   browserLocalPersistence
