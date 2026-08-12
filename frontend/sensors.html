@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="sensors-page-root">
   <head>
     <!-- Sensor page metadata and persistent theme initialization -->
     <meta charset="UTF-8" />
@@ -10,10 +10,13 @@
         localStorage.getItem("gbtacTheme") ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     </script>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="sensor-averages.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=sensors-typography-4" />
+    <link
+      rel="stylesheet"
+      href="sensor-averages.css?v=sensors-typography-4"
+    />
   </head>
-  <body>
+  <body class="sensors-page-body">
     <!-- Shared application header and primary navigation -->
     <header class="topbar">
       <div class="topbar-title">

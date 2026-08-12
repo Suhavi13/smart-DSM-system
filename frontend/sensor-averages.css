@@ -13,7 +13,8 @@
   border-radius: 999px;
   background: var(--surface-strong);
   color: var(--secondary);
-  font-size: 0.85rem;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .sensor-average-controls {
@@ -32,7 +33,8 @@
   display: grid;
   gap: 0.35rem;
   color: var(--secondary);
-  font-size: 0.82rem;
+  font-size: 14px;
+  line-height: 1.4;
   font-weight: 700;
 }
 
@@ -63,15 +65,17 @@
 .sensor-average-chart-heading h3 {
   margin: 0;
   color: var(--secondary);
-  font-size: 1rem;
+  font-size: 20px;
+  line-height: 1.2;
 }
 
 .sensor-selected-summary-heading p,
 .sensor-picker-heading p,
 .sensor-average-chart-heading p {
   margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
+  color: #2f3947;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .sensor-selected-preview {
@@ -91,7 +95,8 @@
   align-items: center;
   min-height: 30px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .sensor-selected-chip {
@@ -125,7 +130,7 @@
 .sensor-selected-more {
   padding: 0.3rem 0.7rem;
   background: var(--surface-strong);
-  color: var(--muted);
+  color: #2f3947;
   font-weight: 700;
 }
 
@@ -148,8 +153,9 @@
 .sensor-average-status {
   min-height: 1.35rem;
   margin: 0 0 0.8rem;
-  color: var(--muted);
-  font-size: 0.88rem;
+  color: #2f3947;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .sensor-average-status[data-state="success"] {
@@ -194,7 +200,7 @@
   border-radius: 50%;
   background: var(--surface-strong);
   color: var(--secondary);
-  font-size: 1.35rem;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
@@ -251,12 +257,14 @@
 .sensor-average-table th {
   background: var(--surface-strong);
   color: var(--secondary);
-  font-size: 0.82rem;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .sensor-average-table td {
   color: #000000;
-  font-size: 0.88rem;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .sensor-average-table tbody tr:last-child td {
@@ -297,13 +305,14 @@
 }
 
 .sensor-picker-name small {
-  color: var(--muted);
-  font-size: 0.76rem;
+  color: #2f3947;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .sensor-average-empty {
   padding: 1.5rem !important;
-  color: var(--muted) !important;
+  color: #2f3947 !important;
   text-align: center !important;
 }
 
@@ -319,9 +328,10 @@
 .sensor-picker-pagination span,
 .sensor-chart-pagination span {
   min-width: 110px;
-  color: var(--muted);
+  color: #2f3947;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 14px;
+  line-height: 1.4;
   font-weight: 700;
 }
 
@@ -356,8 +366,13 @@
   padding: 1.5rem;
   border: 1px dashed var(--border);
   border-radius: 8px;
-  color: var(--muted);
+  color: #2f3947;
   text-align: center;
+}
+
+/* Keep secondary sensor actions legible on the pale-purple control surface. */
+.sensors-page .btn-secondary {
+  color: #004a75;
 }
 
 html[data-theme="dark"] .sensor-average-controls input,
@@ -382,6 +397,23 @@ html[data-theme="dark"] .sensor-picker-selected-only {
   color: #dbe7f5;
 }
 
+html[data-theme="dark"] .sensor-selected-summary-heading p,
+html[data-theme="dark"] .sensor-picker-heading p,
+html[data-theme="dark"] .sensor-average-chart-heading p,
+html[data-theme="dark"] .sensor-selected-more,
+html[data-theme="dark"] .sensor-average-status,
+html[data-theme="dark"] .sensor-picker-name small,
+html[data-theme="dark"] .sensor-average-empty,
+html[data-theme="dark"] .sensor-picker-pagination span,
+html[data-theme="dark"] .sensor-chart-pagination span,
+html[data-theme="dark"] .sensor-average-chart-empty {
+  color: #dbe7f5 !important;
+}
+
+html[data-theme="dark"] .sensors-page .btn-secondary {
+  color: #e5edf8;
+}
+
 html[data-theme="dark"] .sensor-average-table td {
   border-color: var(--border);
   color: #ffffff;
@@ -392,12 +424,12 @@ html[data-theme="dark"] .sensor-average-table tbody tr.is-selected {
 }
 
 html[data-theme="dark"] .sensor-average-status[data-state="success"] {
-  color: #86efac;
+  color: #86efac !important;
 }
 
 html[data-theme="dark"] .sensor-average-status[data-state="warning"],
 html[data-theme="dark"] .sensor-average-status[data-state="error"] {
-  color: #fda4af;
+  color: #fda4af !important;
 }
 
 @media (max-width: 900px) {
@@ -449,4 +481,82 @@ html[data-theme="dark"] .sensor-average-status[data-state="error"] {
   .sensor-chart-pagination {
     flex-wrap: wrap;
   }
+}
+
+/* Fixed Sensors-page typography scale. Keep this after responsive rules so no
+   breakpoint or rem-based shared rule can produce fractional computed sizes. */
+body.sensors-page-body,
+body.sensors-page-body * {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body.sensors-page-body .topbar-wordmark,
+body.sensors-page-body .dashboard-heading h1 {
+  font-size: 24px !important;
+  line-height: 1.2;
+}
+
+body.sensors-page-body .panel-heading h2,
+body.sensors-page-body .sensor-selected-summary-heading h3,
+body.sensors-page-body .sensor-picker-heading h3,
+body.sensors-page-body .sensor-average-chart-heading h3 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+body.sensors-page-body .sensor-summary-card strong {
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+body.sensors-page-body .sensor-summary-card span,
+body.sensors-page-body .panel-heading p,
+body.sensors-page-body .sensor-average-controls label,
+body.sensors-page-body .sensor-picker-filters label,
+body.sensors-page-body .sensor-average-unit-control,
+body.sensors-page-body .sensor-selected-summary-heading p,
+body.sensors-page-body .sensor-picker-heading p,
+body.sensors-page-body .sensor-average-chart-heading p,
+body.sensors-page-body .sensor-average-status,
+body.sensors-page-body .sensor-average-empty,
+body.sensors-page-body .sensor-picker-pagination span,
+body.sensors-page-body .sensor-chart-pagination span,
+body.sensors-page-body .sensor-average-chart-empty {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+body.sensors-page-body .badge,
+body.sensors-page-body .auth-role-badge,
+body.sensors-page-body .sensor-selection-count,
+body.sensors-page-body .sensor-selected-chip,
+body.sensors-page-body .sensor-selected-more,
+body.sensors-page-body .sensor-picker-name small {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+body.sensors-page-body .btn,
+body.sensors-page-body button,
+body.sensors-page-body input,
+body.sensors-page-body select,
+body.sensors-page-body .sensor-table th,
+body.sensors-page-body .sensor-table td,
+body.sensors-page-body .sensor-average-table th,
+body.sensors-page-body .sensor-average-table td {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body.sensors-page-body .sensor-picker-close {
+  font-size: 20px;
+  line-height: 1;
+}
+
+body.sensors-page-body .theme-toggle-icon {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.3;
+  text-indent: -9999px;
 }
