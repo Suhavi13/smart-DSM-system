@@ -1,8 +1,8 @@
 # Smart Building Demand Side Management (DSM) Platform
 
-A full-stack energy analytics platform that helps building operators see how a building uses energy, spot inefficiencies (overnight base load, peak demand) and act on evidence backed recommendations. Built as my SAIT Software Development capstone for a real client, the Green Building Technologies Access Centre (GBTAC).
+A full-stack energy analytics platform that helps building operators see how a building uses energy, spot inefficiencies (overnight base load, peak demand) and act on evidence backed recommendations. Built as my SAIT Software Development capstone for a real client, the Green Building Technology Access Centre (GBTAC).
 
-<img width="400" height="225" alt="Video Project 1" src="https://github.com/user-attachments/assets/b9539e72-a436-4625-b563-403a6f92d5bb" />
+<img width="500" height="225" alt="Video Project 1" src="https://github.com/user-attachments/assets/b9539e72-a436-4625-b563-403a6f92d5bb" />
 
 ## The problem
 GBTAC's building management system logs thousands of sensor points (BACnet → enteliWEB → CopperCube historian), but the data sat in exports that operators couldn't easily use. The goal was to turn **~2.1 million rows × 125 columns of 2018–2025 time-series data** into:
