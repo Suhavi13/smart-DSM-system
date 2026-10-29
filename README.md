@@ -1,6 +1,6 @@
-# Smart Building Demand-Side Management (DSM) Platform
+# Smart Building Demand Side Management (DSM) Platform
 
-A full-stack energy analytics platform that helps building operators see how a building uses energy, spot inefficiencies (overnight base load, peak demand), and act on evidence-backed recommendations. Built as my SAIT Software Development capstone for a real client, the Green Building Technologies Access Centre (GBTAC).
+A full-stack energy analytics platform that helps building operators see how a building uses energy, spot inefficiencies (overnight base load, peak demand) and act on evidence backed recommendations. Built as my SAIT Software Development capstone for a real client, the Green Building Technologies Access Centre (GBTAC).
 
 > 📸 *Add a 20–30 s GIF here: Dashboard → Sensors → Recommendations → Approve.*
 > `![Demo](docs/demo.gif)`
@@ -60,4 +60,4 @@ If `OPENROUTER_API_KEY` is blank, recommendations fall back to rule-based output
 - No measured energy or cost savings are claimed. Expected-benefit figures are estimates.
 
 ## What I'd do next
-Live ingestion from the historian, write-back behind the approval gate, CI with GitHub Actions running the test suite, and per-service observability.
+Live ingestion from the historian, write-back behind the approval gate, CI with GitHub Actions running the test suite and per-service observability.
